@@ -35,6 +35,6 @@ public class DataOneConnector implements InputConnector<InputBroker> {
         args.add(new UITemplate.StringArgument(P_HOST_URL, "DataOne CNode URL",true));
         args.add(new UITemplate.StringArgument(P_FORMATIDENTIFIER, "DataOne Format Identifier",true));
 
-        return new UITemplate(getType(), "D1 Node Title", args);
+        return new UITemplate(getType(), "DataOne", args);
     }
 }

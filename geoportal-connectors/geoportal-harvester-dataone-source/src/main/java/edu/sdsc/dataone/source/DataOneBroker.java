@@ -64,7 +64,7 @@ public class DataOneBroker implements InputBroker  {
     }
     @Override
     public URI getBrokerUri() throws URISyntaxException {
-        return new URI("DataOne",definition.getHostUrl().toExternalForm(),"");
+        return new URI("DataOne",definition.getHostUrl().toExternalForm(),definition.getObjectFormatIdentifier().getValue());
 
     }
     @Override
@@ -173,7 +173,14 @@ public class DataOneBroker implements InputBroker  {
                                 null),
                         metadata.getBytes(), // metadata.getBytes("UTF-8"),
                         MimeType.APPLICATION_XML);
-            } catch (Exception ex) {
+            } catch (NotFound ex) {
+                LOG.info("d1. Object Not found at CNODE:" + ex.getMessage());
+                return next();
+            } catch (NotAuthorized ex) {
+                LOG.info("d1. Permisions Error:" + ex.getMessage());
+                return next();
+            }
+            catch (Exception ex) {
                 throw new DataInputException(DataOneBroker.this, "Error reading data.", ex);
             }
         }
