@@ -25,7 +25,20 @@
             <artifactId>geoportal-commons-constants</artifactId>
             <version>${project.version}</version>
         </dependency>
+
     </dependencies>
+    <repositories>
+        <repository>
+        <id>dataone.org</id>
+        <url>http://maven.dataone.org/</url>
+        <releases>
+            <enabled>true</enabled>
+        </releases>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository></repositories>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
