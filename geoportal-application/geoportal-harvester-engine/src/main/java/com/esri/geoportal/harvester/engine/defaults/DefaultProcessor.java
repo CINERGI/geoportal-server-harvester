@@ -29,10 +29,10 @@ import com.esri.geoportal.harvester.api.ex.DataOutputException;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
 import com.esri.geoportal.harvester.api.general.Link;
 import com.esri.geoportal.harvester.api.specs.InputBroker;
+import com.esri.geoportal.harvester.api.specs.InputBroker.IteratorContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,9 +65,9 @@ public class DefaultProcessor implements Processor {
   }
 
   @Override
-  public ProcessInstance createProcess(Task task, Map<String, Object> attributes) {
+  public ProcessInstance createProcess(Task task, IteratorContext iteratorContext) {
     LOG.info(String.format("SUBMITTING: %s", task));
-    return new DefaultProcess(task, attributes);
+    return new DefaultProcess(task, iteratorContext);
   }
 
   /**
@@ -101,9 +101,7 @@ public class DefaultProcessor implements Processor {
      */
     private void terminate() {
       if (!Thread.currentThread().isInterrupted()) {
-        for (Link link: task.getDataDestinations()) {
-          link.terminate();
-        }
+        task.getDataDestinations().stream().forEach(Link::terminate);
         task.getDataSource().terminate();
       }
     }
@@ -112,18 +110,20 @@ public class DefaultProcessor implements Processor {
      * Creates instance of the process.
      *
      * @param task task
-     * @param attributes attributes or <code>null</code> if no attributes
+     * @param iteratorContext iteration context
      */
-    public DefaultProcess(Task task, Map<String, Object> attributes) {
+    public DefaultProcess(Task task, IteratorContext iteratorContext) {
       this.task = task;
       this.thread = new Thread(() -> {
-        onStatusChange();
+        InitContext initContext = new SimpleInitContext(task,listeners);
         LOG.info(String.format("Started harvest: %s", getTitle()));
+        
         if (!task.getDataDestinations().isEmpty()) {
           try {
-            initialize(new SimpleInitContext(task));
+            initialize(initContext);
+            onStatusChange();
             
-            InputBroker.Iterator iterator = task.getDataSource().iterator(attributes);
+            InputBroker.Iterator iterator = task.getDataSource().iterator(iteratorContext);
             while (iterator.hasNext()) {
               if (Thread.currentThread().isInterrupted()) {
                 break;
@@ -227,8 +227,8 @@ public class DefaultProcessor implements Processor {
       }
       LOG.info(String.format("Aborting process: %s", getTitle()));
       aborting = true;
-      thread.interrupt();
       onStatusChange();
+      thread.interrupt();
     }
 
     /**

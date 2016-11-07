@@ -66,9 +66,11 @@ define({
       caption: "Tasks",
       add: "Add",
       run: "run",
+      export: "export",
       remove: "remove",
       history: "history",
       schedule: "schedule",
+      imp: "Import",
       editor: {
         caption: "Task",
         submit: "Submit",
@@ -96,6 +98,8 @@ define({
     processes: {
       caption: "Processes",
       cancel: "cancel",
+      min: "min",
+      purge: "Purge",
       errors: {
         loading: "Error loading processes",
         canceling: "Error canceling process"

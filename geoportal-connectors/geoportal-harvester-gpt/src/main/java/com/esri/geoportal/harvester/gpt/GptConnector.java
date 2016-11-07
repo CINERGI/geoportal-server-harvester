@@ -15,8 +15,8 @@
  */
 package com.esri.geoportal.harvester.gpt;
 
-import com.esri.geoportal.commons.gpt.client.Client;
-import com.esri.geoportal.harvester.api.base.CredentialsDefinitionAdaptor;
+import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_PASSWORD;
+import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_USERNAME;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.defs.UITemplate;
 import com.esri.geoportal.harvester.api.ex.InvalidDefinitionException;
@@ -24,8 +24,6 @@ import com.esri.geoportal.harvester.api.specs.OutputBroker;
 import com.esri.geoportal.harvester.api.specs.OutputConnector;
 import static com.esri.geoportal.harvester.gpt.GptBrokerDefinitionAdaptor.P_CLEANUP;
 import static com.esri.geoportal.harvester.gpt.GptBrokerDefinitionAdaptor.P_HOST_URL;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,8 +43,8 @@ public class GptConnector implements OutputConnector<OutputBroker> {
   public UITemplate getTemplate() {
     List<UITemplate.Argument> arguments = new ArrayList<>();
     arguments.add(new UITemplate.StringArgument(P_HOST_URL, "URL", true));
-    arguments.add(new UITemplate.StringArgument(CredentialsDefinitionAdaptor.P_CRED_USERNAME, "User name", true));
-    arguments.add(new UITemplate.StringArgument(CredentialsDefinitionAdaptor.P_CRED_PASSWORD, "User password", true) {
+    arguments.add(new UITemplate.StringArgument(P_CRED_USERNAME, "User name", true));
+    arguments.add(new UITemplate.StringArgument(P_CRED_PASSWORD, "User password", true) {
       public boolean isPassword() {
         return true;
       }

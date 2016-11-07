@@ -27,8 +27,10 @@ public final class ItemEntry {
   public String type;
   public String [] typeKeywords;
   public String [] tags;
+  public Double [][] extent;
   public String description;
   public String url;
+  public String ownerFolder;
   
   @Override
   public String toString() {

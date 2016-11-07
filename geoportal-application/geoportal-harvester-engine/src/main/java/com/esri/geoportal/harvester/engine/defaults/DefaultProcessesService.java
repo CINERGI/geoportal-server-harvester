@@ -19,6 +19,7 @@ import com.esri.geoportal.harvester.api.ProcessInstance;
 import com.esri.geoportal.harvester.api.defs.Task;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
 import com.esri.geoportal.harvester.api.ex.InvalidDefinitionException;
+import com.esri.geoportal.harvester.api.specs.InputBroker.IteratorContext;
 import com.esri.geoportal.harvester.engine.services.ProcessesService;
 import com.esri.geoportal.harvester.engine.managers.ProcessManager;
 import com.esri.geoportal.harvester.engine.managers.ReportManager;
@@ -78,15 +79,29 @@ public class DefaultProcessesService implements ProcessesService {
   }
 
   @Override
-  public ProcessReference createProcess(Task task, Map<String,Object> attributes) throws InvalidDefinitionException, DataProcessorException {
+  public ProcessReference createProcess(Task task, IteratorContext iteratorContext) throws InvalidDefinitionException, DataProcessorException {
     try {
-      ProcessInstance process = task.getProcessor().createProcess(task,attributes);
+      ProcessInstance process = task.getProcessor().createProcess(task,iteratorContext);
       UUID uuid = processManager.create(process);
       ReportBuilder reportBuilder = reportManager.createReportBuilder(uuid, process);
       process.addListener(new ReportBuilderAdaptor(uuid, process, reportBuilder));
       return new ProcessReference(uuid, process);
     } catch (CrudlException ex) {
       throw new DataProcessorException(String.format("Error creating process: %s", task), ex);
+    }
+  }
+  
+  @Override
+  public List<Map.Entry<UUID, ProcessInstance>> removeCompleted() throws DataProcessorException {
+    List<Map.Entry<UUID, ProcessInstance>> completed = selectProcesses((e)->e.getValue().getStatus()==ProcessInstance.Status.completed);
+    List<UUID> uuids = completed.stream().map(e->e.getKey()).collect(Collectors.toList());
+    try {
+      for (UUID uuid: uuids) {
+        processManager.delete(uuid);
+      }
+      return completed;
+    } catch(CrudlException ex) {
+      throw new DataProcessorException(String.format("Error removing completed processes."), ex);
     }
   }
 }

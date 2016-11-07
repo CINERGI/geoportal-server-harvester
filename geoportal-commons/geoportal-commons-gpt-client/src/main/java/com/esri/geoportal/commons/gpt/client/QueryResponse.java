@@ -21,14 +21,21 @@ import java.util.List;
  * Query response.
  */
 /*package*/ final class QueryResponse {
-  public long total;
+  public String _scroll_id;
   public Hits hits;
  
   public static final class Hits {
+    public long total;
     public List<Hit> hits;
   }
   
   public static final class Hit {
     public String _id;
+    public Source _source;
+  }
+  
+  public static final class Source {
+    public String src_uri_s;
+    public String src_lastupdate_dt;
   }
 }

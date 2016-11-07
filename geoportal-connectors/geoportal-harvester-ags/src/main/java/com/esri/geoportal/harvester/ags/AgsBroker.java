@@ -17,9 +17,11 @@ package com.esri.geoportal.harvester.ags;
 
 import com.esri.geoportal.commons.ags.client.AgsClient;
 import com.esri.geoportal.commons.ags.client.ContentResponse;
+import com.esri.geoportal.commons.ags.client.ExtentInfo;
 import com.esri.geoportal.commons.ags.client.ServerResponse;
 import com.esri.geoportal.commons.ags.client.ServiceInfo;
 import com.esri.geoportal.commons.constants.MimeType;
+import com.esri.geoportal.commons.http.BotsHttpClient;
 import com.esri.geoportal.commons.meta.Attribute;
 import com.esri.geoportal.commons.meta.MetaBuilder;
 import com.esri.geoportal.commons.meta.MetaException;
@@ -27,6 +29,9 @@ import com.esri.geoportal.commons.meta.MapAttribute;
 import com.esri.geoportal.commons.meta.StringAttribute;
 import com.esri.geoportal.harvester.api.DataReference;
 import com.esri.geoportal.harvester.api.base.SimpleDataReference;
+import com.esri.geoportal.commons.meta.util.WKAConstants;
+import com.esri.geoportal.commons.robots.Bots;
+import com.esri.geoportal.commons.robots.BotsUtils;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.ex.DataInputException;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
@@ -39,7 +44,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
@@ -47,6 +51,8 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -87,7 +93,13 @@ import org.w3c.dom.Document;
 
   @Override
   public void initialize(InitContext context) throws DataProcessorException {
-    client = new AgsClient(definition.getHostUrl());
+    CloseableHttpClient httpclient = HttpClients.createDefault();
+    if (context.getTask().getTaskDefinition().isIgnoreRobotsTxt()) {
+      client = new AgsClient(httpclient, definition.getHostUrl());
+    } else {
+      Bots bots = BotsUtils.readBots(definition.getBotsConfig(), httpclient, definition.getBotsMode(), definition.getHostUrl());
+      client = new AgsClient(new BotsHttpClient(httpclient,bots), definition.getHostUrl());
+    }
   }
 
   @Override
@@ -105,8 +117,11 @@ import org.w3c.dom.Document;
   }
 
   @Override
-  public Iterator iterator(Map<String, Object> attributes) throws DataInputException {
+  public Iterator iterator(IteratorContext iteratorContext) throws DataInputException {
     try {
+      if (iteratorContext.getLastHarvestDate()!=null) {
+        LOG.info(String.format("Incremental harvest is not supported by Server for ArcGIS connector. Full harvest will be performed instead."));
+      }
       List<ServerResponse> responses = listResponses(null);
       return new AgsIterator(responses.iterator());
     } catch (URISyntaxException|IOException ex) {
@@ -135,6 +150,11 @@ import org.w3c.dom.Document;
     return responses;
   }
 
+  @Override
+  public String toString() {
+    return String.format("AGS [%s]", definition.getHostUrl());
+  }
+
   /**
    * ArcGIS content iterator.
    */
@@ -156,13 +176,22 @@ import org.w3c.dom.Document;
       try {
         ServerResponse next = iterator.next();
         String serviceType = getServiceType(next.url);
+        String serviceRoor = getServiceRoot(next.url);
         
         HashMap<String, Attribute> attributes = new HashMap<>();
-        attributes.put("identifier", new StringAttribute(next.url));
-        attributes.put("title", new StringAttribute(StringUtils.defaultString(StringUtils.defaultString(next.mapName, next.name),StringUtils.defaultString(serviceType, next.url))));
-        attributes.put("description", new StringAttribute(StringUtils.defaultString(StringUtils.defaultString(StringUtils.defaultString(next.description, next.serviceDescription)))));
-        attributes.put("resource.url", new StringAttribute(next.url));
-        attributes.put("resource.url.scheme", new StringAttribute("urn:x-esri:specification:ServiceType:ArcGIS:" + (serviceType!=null? serviceType: "Unknown")));
+        attributes.put(WKAConstants.WKA_IDENTIFIER, new StringAttribute(next.url));
+        attributes.put(WKAConstants.WKA_TITLE, new StringAttribute(String.format("%s/%s", serviceRoor, StringUtils.defaultString(StringUtils.defaultString(next.mapName, next.name),StringUtils.defaultString(serviceType, next.url)))));
+        attributes.put(WKAConstants.WKA_DESCRIPTION, new StringAttribute(StringUtils.defaultString(StringUtils.defaultString(StringUtils.defaultString(next.description, next.serviceDescription)))));
+        attributes.put(WKAConstants.WKA_RESOURCE_URL, new StringAttribute(next.url));
+        attributes.put(WKAConstants.WKA_RESOURCE_URL_SCHEME, new StringAttribute("urn:x-esri:specification:ServiceType:ArcGIS:" + (serviceType!=null? serviceType: "Unknown")));
+        
+        String sBox = createBBox(next.fullExtent);
+        if (sBox==null) {
+          sBox = createBBox(next.initialExtent);
+        }
+        if (sBox!=null) {
+          attributes.put(WKAConstants.WKA_BBOX, new StringAttribute(sBox));
+        }
 
         MapAttribute attrs = new MapAttribute(attributes);
         Document document = metaBuilder.create(attrs);
@@ -185,10 +214,29 @@ import org.w3c.dom.Document;
       }
     }
     
+    private String createBBox(ExtentInfo extent) {
+      if (extent!=null && extent.isValid()) {
+        return String.format("%f %f,%f %f", extent.xmin, extent.ymin, extent.xmax, extent.ymax);
+      }
+      return null;
+    }
+    
     private String getServiceType(String url) {
       if (url!=null && url.endsWith("Server")) {
         int slashIndex = url.lastIndexOf("/");
         return slashIndex>=0? url.substring(slashIndex+1): url;
+      }
+      return null;
+    }
+    
+    private String getServiceRoot(String url) {
+      if (url!=null && url.endsWith("Server")) {
+        int slashIndex = url.lastIndexOf("/");
+        if (slashIndex>0) {
+          url = url.substring(0,slashIndex);
+          slashIndex = url.lastIndexOf("/");
+          return slashIndex>=0? url.substring(slashIndex+1): url;
+        }
       }
       return null;
     }

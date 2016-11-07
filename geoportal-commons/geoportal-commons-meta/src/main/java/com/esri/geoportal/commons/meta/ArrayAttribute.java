@@ -16,6 +16,8 @@
 package com.esri.geoportal.commons.meta;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -33,8 +35,19 @@ public final class ArrayAttribute implements Attribute {
     return true;
   }
 
+  @Override
   public Attribute[] getAttributes() {
     return attributes;
+  }
+
+  @Override
+  public Map<String, String> flatten(String prefix) {
+    HashMap<String,String> flat = new HashMap<>();
+    for (int i=0; i<attributes.length; i++) {
+      Map<String, String> f = attributes[i].flatten(prefix!=null? String.format("%s:%d", prefix, i): String.format("%d", i));
+      flat.putAll(f);
+    }
+    return flat;
   }
   
   @Override

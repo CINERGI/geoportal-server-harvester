@@ -17,6 +17,7 @@ package com.esri.geoportal.commons.csw.client.impl;
 
 import static com.esri.core.geometry.Operator.Type.Contains;
 import static com.esri.core.geometry.Operator.Type.Intersects;
+import com.esri.geoportal.commons.constants.HttpConstants;
 import com.esri.geoportal.commons.csw.client.IClient;
 import com.esri.geoportal.commons.csw.client.ICriteria;
 import com.esri.geoportal.commons.csw.client.IProfile;
@@ -24,7 +25,6 @@ import com.esri.geoportal.commons.csw.client.IRecord;
 import com.esri.geoportal.commons.csw.client.IRecords;
 import static com.esri.geoportal.commons.csw.client.impl.Constants.CONFIG_FOLDER_PATH;
 import static com.esri.geoportal.commons.csw.client.impl.Constants.SCHEME_METADATA_DOCUMENT;
-import com.esri.geoportal.commons.http.BotsHttpClient;
 import static com.esri.geoportal.commons.utils.Constants.DEFAULT_REQUEST_CONFIG;
 import com.esri.geoportal.commons.utils.SimpleCredentials;
 import static com.esri.geoportal.commons.utils.HttpClientContextBuilder.createHttpClientContext;
@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -60,12 +61,15 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -80,7 +84,7 @@ import org.xml.sax.SAXException;
 public class Client implements IClient {
 
   private final Logger LOG = LoggerFactory.getLogger(Client.class);
-  private final BotsHttpClient httpClient;
+  private final CloseableHttpClient httpClient;
   private final URL baseUrl;
   private final IProfile profile;
   private final SimpleCredentials cred;
@@ -95,7 +99,7 @@ public class Client implements IClient {
    * @param profile CSW profile
    * @param cred credentials
    */
-  public Client(BotsHttpClient httpClient, URL baseUrl, IProfile profile, SimpleCredentials cred) {
+  public Client(CloseableHttpClient httpClient, URL baseUrl, IProfile profile, SimpleCredentials cred) {
     this.httpClient = httpClient;
     this.baseUrl = baseUrl;
     this.profile = profile;
@@ -103,7 +107,7 @@ public class Client implements IClient {
   }
 
   @Override
-  public IRecords findRecords(int start, int max) throws Exception {
+  public IRecords findRecords(int start, int max, Date from, Date to) throws Exception {
     LOG.debug(String.format("Executing findRecords(start=%d,max=%d)", start, max));
     
     loadCapabilities();
@@ -111,13 +115,19 @@ public class Client implements IClient {
     Criteria crt = new Criteria();
     crt.setStartPosition(start);
     crt.setMaxRecords(max);
-    HttpPost postRequest = new HttpPost(capabilites.get_getRecordsPostURL());
-    postRequest.setConfig(DEFAULT_REQUEST_CONFIG);
+    crt.setFromDate(from);
+    crt.setToDate(to);
+    HttpPost post = new HttpPost(capabilites.get_getRecordsPostURL());
+    post.setConfig(DEFAULT_REQUEST_CONFIG);
+    post.setHeader("User-Agent", HttpConstants.getUserAgent());
     String requestBody = createGetRecordsRequest(crt);
-    postRequest.setEntity(new StringEntity(requestBody, ContentType.APPLICATION_XML));
+    post.setEntity(new StringEntity(requestBody, ContentType.TEXT_XML));
 
     HttpClientContext context = cred!=null && !cred.isEmpty()? createHttpClientContext(baseUrl, cred): null;
-    try (InputStream responseInputStream = httpClient.execute(postRequest,context).getEntity().getContent();) {
+    try (CloseableHttpResponse httpResponse = httpClient.execute(post,context); InputStream responseInputStream = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String response = IOUtils.toString(responseInputStream, "UTF-8");
       try (ByteArrayInputStream contentInputStream = new ByteArrayInputStream(response.getBytes("UTF-8"));) {
         Records records = new Records();
@@ -134,11 +144,14 @@ public class Client implements IClient {
     loadCapabilities();
 
     String getRecordByIdUrl = createGetMetadataByIdUrl(capabilites.get_getRecordByIDGetURL(), URLEncoder.encode(id, "UTF-8"));
-    HttpGet getMethod = new HttpGet(getRecordByIdUrl);
-    getMethod.setConfig(DEFAULT_REQUEST_CONFIG);
-    try (InputStream responseStream = httpClient.execute(getMethod).getEntity().getContent();) {
+    HttpGet get = new HttpGet(getRecordByIdUrl);
+    get.setConfig(DEFAULT_REQUEST_CONFIG);
+    get.setHeader("User-Agent", HttpConstants.getUserAgent());
+    try (CloseableHttpResponse httpResponse = httpClient.execute(get); InputStream responseStream = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String response = IOUtils.toString(responseStream, "UTF-8");
-
       if (CONFIG_FOLDER_PATH.equals(profile.getMetadataxslt())) {
         return response;
       }
@@ -166,7 +179,7 @@ public class Client implements IClient {
         // use URL to get meta data
         if (!xmlUrl.isEmpty()) {
           HttpGet getRequest = new HttpGet(xmlUrl);
-          try (InputStream metadataStream = httpClient.execute(getRequest).getEntity().getContent();) {
+          try (CloseableHttpResponse httpResp = httpClient.execute(getRequest); InputStream metadataStream = httpResp.getEntity().getContent();) {
             return IOUtils.toString(metadataStream, "UTF-8");
           }
         }
@@ -339,7 +352,10 @@ public class Client implements IClient {
       RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(5000).setSocketTimeout(2500).build();
       HttpGet getRequest = new HttpGet(baseUrl.toExternalForm()+"?request=GetCapabilities&service=CSW&version=2.0.2");
       getRequest.setConfig(requestConfig);
-      try (InputStream stream = httpClient.execute(getRequest).getEntity().getContent();) {
+      try (CloseableHttpResponse httpResponse = httpClient.execute(getRequest); InputStream stream = httpResponse.getEntity().getContent();) {
+        if (httpResponse.getStatusLine().getStatusCode()>=400) {
+          throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+        }
         capabilites = readCapabilities(stream);
       }
     }
@@ -382,9 +398,14 @@ public class Client implements IClient {
       request += "<MaxX>" + criteria.getEnvelope().getXMax() + "</MaxX>";
       request += "<MaxY>" + criteria.getEnvelope().getYMax() + "</MaxY>";
       request += "</Envelope>";
-      request += "<RecordsFullyWithinEnvelope>" + criteria.getOperation() == Contains + "</RecordsFullyWithinEnvelope>";
-      request += "<RecordsIntersectWithEnvelope>" + criteria.getOperation() == Intersects + "</RecordsIntersectWithEnvelope>";
-
+      request += "<RecordsFullyWithinEnvelope>" + (criteria.getOperation() == Contains) + "</RecordsFullyWithinEnvelope>";
+      request += "<RecordsIntersectWithEnvelope>" + (criteria.getOperation() == Intersects) + "</RecordsIntersectWithEnvelope>";
+    }
+    if (criteria.getFromDate()!=null) {
+      request += "<FromDate>" + formatIsoDate(criteria.getFromDate()) + "</FromDate>";
+    }
+    if (criteria.getToDate()!=null) {
+      request += "<ToDate>" + formatIsoDate(criteria.getToDate()) + "</ToDate>";
     }
     request += "</GetRecords>";
 
@@ -397,14 +418,24 @@ public class Client implements IClient {
    * @param strDate ISO date as string
    * @return date object or <code>null</code> if unable to parse date
    */
-  private Date parseIsoDate(String strDate) {
+  private static Date parseIsoDate(String strDate) {
     try {
       return Date.from(ZonedDateTime.from(DateTimeFormatter.ISO_DATE_TIME.parse(strDate)).toInstant());
     } catch (Exception ex) {
       return null;
     }
   }
-
+  
+  /**
+   * Formats ISO date.
+   * @param date date to format
+   * @return ISO date
+   */
+  private static String formatIsoDate(Date date) {
+    ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+    return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(zonedDateTime);
+  }
+  
   @Override
   public String toString() {
     return String.format("CSW :: URL: %s [%s]", baseUrl, profile.getId());

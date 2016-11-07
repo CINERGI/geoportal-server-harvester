@@ -33,7 +33,6 @@ import com.esri.geoportal.harvester.api.specs.InputConnector;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
@@ -51,6 +50,7 @@ import org.slf4j.LoggerFactory;
   private CloseableHttpClient httpclient;
   private IClient client;
   private java.util.Iterator<IRecord> recs;
+  private IRecord nextRecord;
   private int start = 1;
   private boolean noMore;
 
@@ -67,8 +67,12 @@ import org.slf4j.LoggerFactory;
   @Override
   public void initialize(InitContext context) throws DataProcessorException {
     httpclient = HttpClients.createDefault();
-    Bots bots = BotsUtils.readBots(definition.getBotsConfig(), httpclient, definition.getBotsMode(), definition.getHostUrl());
-    client = new Client(new BotsHttpClient(httpclient,bots), definition.getHostUrl(), definition.getProfile(), definition.getCredentials());
+    if (context.getTask().getTaskDefinition().isIgnoreRobotsTxt()) {
+      client = new Client(httpclient, definition.getHostUrl(), definition.getProfile(), definition.getCredentials());
+    } else {
+      Bots bots = BotsUtils.readBots(definition.getBotsConfig(), httpclient, definition.getBotsMode(), definition.getHostUrl());
+      client = new Client(new BotsHttpClient(httpclient,bots), definition.getHostUrl(), definition.getProfile(), definition.getCredentials());
+    }
   }
 
   @Override
@@ -88,8 +92,8 @@ import org.slf4j.LoggerFactory;
   }
 
   @Override
-  public Iterator iterator(Map<String,Object> attributes) throws DataInputException {
-    return new CswIterator();
+  public Iterator iterator(IteratorContext iteratorContext) throws DataInputException {
+    return new CswIterator(iteratorContext);
   }
 
   @Override
@@ -111,6 +115,17 @@ import org.slf4j.LoggerFactory;
    * CSW iterator.
    */
   private class CswIterator implements InputBroker.Iterator {
+    private final IteratorContext iteratorContext;
+
+    /**
+     * Creates instance of the iterator.
+     * @param iteratorContext iterator context
+     */
+    public CswIterator(IteratorContext iteratorContext) {
+      this.iteratorContext = iteratorContext;
+    }
+    
+    
     @Override
     public boolean hasNext() throws DataInputException {
       try {
@@ -119,7 +134,7 @@ import org.slf4j.LoggerFactory;
         }
 
         if (recs==null) {
-          IRecords r = client.findRecords(start, PAGE_SIZE);
+          IRecords r = client.findRecords(start, PAGE_SIZE, iteratorContext.getLastHarvestDate(), null);
           if (r.isEmpty()) {
             noMore = true;
           } else {
@@ -133,7 +148,14 @@ import org.slf4j.LoggerFactory;
           start += PAGE_SIZE;
           return hasNext();
         }
+        
+        IRecord rec = recs.next();
+        
+        if (rec.getLastModifiedDate()!=null && iteratorContext.getLastHarvestDate()!=null && !(rec.getLastModifiedDate().getTime()>=iteratorContext.getLastHarvestDate().getTime())) {
+          return hasNext();
+        }
 
+        nextRecord = rec;
         return true;
       } catch (Exception ex) {
         throw new DataInputException(CswBroker.this, "Error reading data.", ex);
@@ -143,7 +165,11 @@ import org.slf4j.LoggerFactory;
     @Override
     public DataReference next() throws DataInputException {
       try {
-        IRecord rec = recs.next();
+        if (nextRecord==null) {
+          throw new DataInputException(CswBroker.this, String.format("No more records."));
+        }
+        IRecord rec = nextRecord;
+        nextRecord=null;
         String metadata = client.readMetadata(rec.getId());
         return new SimpleDataReference(getBrokerUri(), getEntityDefinition().getLabel(), rec.getId(), rec.getLastModifiedDate(), new URI("uuid", rec.getId(), null), metadata.getBytes("UTF-8"), MimeType.APPLICATION_XML);
       } catch (Exception ex) {

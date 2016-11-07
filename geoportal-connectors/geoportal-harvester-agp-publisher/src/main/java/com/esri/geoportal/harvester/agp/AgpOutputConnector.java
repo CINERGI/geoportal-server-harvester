@@ -15,10 +15,12 @@
  */
 package com.esri.geoportal.harvester.agp;
 
+import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_PASSWORD;
+import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_USERNAME;
 import com.esri.geoportal.commons.meta.MetaAnalyzer;
+import static com.esri.geoportal.harvester.agp.AgpOutputBrokerDefinitionAdaptor.P_FOLDER_CLEANUP;
 import static com.esri.geoportal.harvester.agp.AgpOutputBrokerDefinitionAdaptor.P_FOLDER_ID;
 import static com.esri.geoportal.harvester.agp.AgpOutputBrokerDefinitionAdaptor.P_HOST_URL;
-import com.esri.geoportal.harvester.api.base.CredentialsDefinitionAdaptor;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.defs.UITemplate;
 import com.esri.geoportal.harvester.api.ex.InvalidDefinitionException;
@@ -58,13 +60,14 @@ public class AgpOutputConnector implements OutputConnector<OutputBroker> {
     List<UITemplate.Argument> args = new ArrayList<>();
     args.add(new UITemplate.StringArgument(P_HOST_URL, "Url", true));
     args.add(new UITemplate.StringArgument(P_FOLDER_ID, "Folder Id", false));
-    args.add(new UITemplate.StringArgument(CredentialsDefinitionAdaptor.P_CRED_USERNAME, "User name", true));
-    args.add(new UITemplate.StringArgument(CredentialsDefinitionAdaptor.P_CRED_PASSWORD, "User password", true) {
+    args.add(new UITemplate.StringArgument(P_CRED_USERNAME, "User name", true));
+    args.add(new UITemplate.StringArgument(P_CRED_PASSWORD, "User password", true) {
       public boolean isPassword() {
         return true;
       }
     });
-    return new UITemplate(getType(), "ArcGIS Server Services", args);
+    args.add(new UITemplate.BooleanArgument(P_FOLDER_CLEANUP, "Perform cleanup"));
+    return new UITemplate(getType(), "ArcGIS Portal", args);
   }
   
 }

@@ -26,11 +26,13 @@ define(["dojo/_base/declare",
         "dijit/form/CheckBox",
         "dijit/form/TimeTextBox",
         "dijit/form/RadioButton",
-        "dijit/form/Form"
+        "dijit/form/Form",
+        "hrv/utils/TextScrambler"
       ],
   function(declare,i18n,
            lang,array,domConstruct,number,
-           Select,ValidationTextBox,CheckBox,TimeTextBox,RadioButton,Form
+           Select,ValidationTextBox,CheckBox,TimeTextBox,RadioButton,Form,
+           TextScrambler
           ){
   
     return {
@@ -75,15 +77,15 @@ define(["dojo/_base/declare",
       },
       
       renderString: function(placeholderNode,arg) {
-        var input = new ValidationTextBox({name: arg.name, required: arg.required}).placeAt(placeholderNode);
+        var input = new ValidationTextBox({name: arg.name, required: arg.required, type: arg.password? "password": "input"}).placeAt(placeholderNode);
         input.name = arg.name;
         input.startup();
         return { 
           init: function(values) {
-            input.set("value", values[arg.name]);
+            input.set("value", !arg.password? values[arg.name]: TextScrambler.decode(values[arg.name]));
           },
           read: function(values) {
-            values[arg.name] = input.get("value");
+            values[arg.name] = !arg.password? input.get("value"): TextScrambler.encode(input.get("value"));
           },
           destroy: function() {
             input.destroy();

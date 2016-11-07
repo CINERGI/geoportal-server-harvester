@@ -136,5 +136,7 @@ $RECYCLE.BIN/
 *.lnk
 /geoportal-commons/geoportal-commons-ags-client/target/
 /geoportal-commons/geoportal-commons-constants/target/
+/geoportal-connectors/geoportal-harvester-gptsrc/target/
+/geoportal-application/geoportal-harvester-cli/target/
 
 

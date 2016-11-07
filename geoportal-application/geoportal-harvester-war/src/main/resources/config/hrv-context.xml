@@ -25,7 +25,7 @@
 
     <bean id="config"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="/WEB-INF/config.properties"/>
+          p:location="classpath:config/hrv.properties"/>
     
     <bean id="dataSource"
       class="org.springframework.jdbc.datasource.DriverManagerDataSource"
@@ -34,6 +34,9 @@
       p:username="${jdbc.username}"
       p:password="${jdbc.password}" />
 
+    <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="maxUploadSize" value="268435456"/> <!-- 256 megs -->
+    </bean>    
   <!-- ADD PERSISTENCE SUPPORT HERE (jpa, hibernate, etc) -->
 
 </beans>

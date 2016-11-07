@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.LinkedList;
-import java.util.Map;
 
 /**
  * UNC broker.
@@ -74,8 +73,8 @@ import java.util.Map;
   }
 
   @Override
-  public Iterator iterator(Map<String,Object> attributes) throws DataInputException {
-    return new UncIterator();
+  public Iterator iterator(IteratorContext iteratorContext) throws DataInputException {
+    return new UncIterator(iteratorContext);
   }
 
   @Override
@@ -87,6 +86,17 @@ import java.util.Map;
    * UNC iterator.
    */
   private class UncIterator implements InputBroker.Iterator {
+    private final IteratorContext iteratorContext;
+
+    /**
+     * Creates instance of the iterator.
+     * @param iteratorContext iterator context
+     */
+    public UncIterator(IteratorContext iteratorContext) {
+      this.iteratorContext = iteratorContext;
+    }
+    
+    
     @Override
     public boolean hasNext() throws DataInputException {
 
@@ -104,7 +114,7 @@ import java.util.Map;
         }
 
         if (subFolders==null) {
-          UncFolderContent content = new UncFolder(UncBroker.this, definition.getRootFolder(), definition.getPattern()).readContent();
+          UncFolderContent content = new UncFolder(UncBroker.this, definition.getRootFolder(), definition.getPattern(), iteratorContext.getLastHarvestDate()).readContent();
           subFolders = new LinkedList<>(content.getSubFolders());
           files = new LinkedList<>(content.getFiles());
           return hasNext();

@@ -30,8 +30,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Set;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
   private final WafBrokerDefinitionAdaptor definition;
   private final Set<URL> visited = new HashSet<>();
   
-  private BotsHttpClient httpClient;
+  private CloseableHttpClient httpClient;
   private LinkedList<WafFolder> subFolders;
   private LinkedList<WafFile> files;
 
@@ -64,8 +64,12 @@ import org.slf4j.LoggerFactory;
   @Override
   public void initialize(InitContext context) throws DataProcessorException {
     CloseableHttpClient client = HttpClients.createDefault();
-    Bots bots = BotsUtils.readBots(definition.getBotsConfig(), client, definition.getBotsMode(), definition.getHostUrl());
-    httpClient = new BotsHttpClient(client,bots);
+    if (context.getTask().getTaskDefinition().isIgnoreRobotsTxt()) {
+      httpClient = client;
+    } else {
+      Bots bots = BotsUtils.readBots(definition.getBotsConfig(), client, definition.getBotsMode(), definition.getHostUrl());
+      httpClient = new BotsHttpClient(client,bots);
+    }
   }
 
   @Override
@@ -85,8 +89,8 @@ import org.slf4j.LoggerFactory;
   }
 
   @Override
-  public Iterator iterator(Map<String,Object> attributes) throws DataInputException {
-    return new WafIterator();
+  public Iterator iterator(IteratorContext iteratorContext) throws DataInputException {
+    return new WafIterator(iteratorContext);
   }
 
   @Override
@@ -108,11 +112,28 @@ import org.slf4j.LoggerFactory;
    * WAF iterator.
    */
   private class WafIterator implements InputBroker.Iterator {
+    private final IteratorContext iteratorContext;
+    private DataReference nextFile;
+
+    /**
+     * Creates instance of the iterator.
+     * @param iteratorContext iterator context
+     */
+    public WafIterator(IteratorContext iteratorContext) {
+      this.iteratorContext = iteratorContext;
+    }
+    
+    
     @Override
     public boolean hasNext() throws DataInputException {
 
       try {
         if (files!=null && !files.isEmpty()) {
+          nextFile = readContent();
+          if (nextFile.getContent()==null) {
+            nextFile = null;
+            return hasNext();
+          }
           return true;
         }
 
@@ -144,11 +165,23 @@ import org.slf4j.LoggerFactory;
 
     @Override
     public DataReference next() throws DataInputException {
+      if (nextFile==null) {
+        throw new DataInputException(WafBroker.this, String.format("No more records."));
+      }
+      DataReference result = nextFile;
+      nextFile=null;
+      return result;
+    }
+    
+    private DataReference readContent() throws IOException, URISyntaxException {
+      WafFile file = files.poll();
       try {
-        WafFile file = files.poll();
-        return file.readContent(httpClient);
-      } catch (IOException|URISyntaxException ex) {
-        throw new DataInputException(WafBroker.this, "Error reading data.", ex);
+        return file.readContent(httpClient, iteratorContext.getLastHarvestDate());
+      } catch (HttpResponseException ex) {
+        if (ex.getStatusCode()!=403) {
+          throw ex;
+        }
+        return null;
       }
     }
   }

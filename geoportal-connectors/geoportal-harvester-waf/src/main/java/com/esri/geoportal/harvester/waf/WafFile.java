@@ -15,9 +15,9 @@
  */
 package com.esri.geoportal.harvester.waf;
 
+import com.esri.geoportal.commons.constants.HttpConstants;
 import com.esri.geoportal.commons.constants.MimeType;
 import com.esri.geoportal.commons.constants.MimeTypeUtils;
-import com.esri.geoportal.commons.http.BotsHttpClient;
 import static com.esri.geoportal.commons.utils.Constants.DEFAULT_REQUEST_CONFIG;
 import static com.esri.geoportal.commons.utils.HttpClientContextBuilder.createHttpClientContext;
 import com.esri.geoportal.commons.utils.SimpleCredentials;
@@ -32,8 +32,11 @@ import java.util.Date;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpResponseException;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.client.CloseableHttpClient;
 
 /**
  * WAF file.
@@ -60,19 +63,25 @@ import org.apache.http.client.protocol.HttpClientContext;
   /**
    * Reads content.
    * @param httpClient HTTP client
+   * @param since since date
    * @return content reference
    * @throws IOException if reading content fails
    * @throws URISyntaxException if file url is an invalid URI
    */
-  public SimpleDataReference readContent(BotsHttpClient httpClient) throws IOException, URISyntaxException {
+  public SimpleDataReference readContent(CloseableHttpClient httpClient, Date since) throws IOException, URISyntaxException {
     HttpGet method = new HttpGet(fileUrl.toExternalForm());
     method.setConfig(DEFAULT_REQUEST_CONFIG);
+    method.setHeader("User-Agent", HttpConstants.getUserAgent());
     HttpClientContext context = creds!=null && !creds.isEmpty()? createHttpClientContext(fileUrl, creds): null;
-    HttpResponse response = httpClient.execute(method,context);
-    Date lastModifiedDate = readLastModifiedDate(response);
-    MimeType contentType = readContentType(response);
-    try (InputStream input = response.getEntity().getContent()) {
-      return new SimpleDataReference(broker.getBrokerUri(), broker.getEntityDefinition().getLabel(), fileUrl.toExternalForm(), lastModifiedDate, fileUrl.toURI(), IOUtils.toByteArray(input), contentType);
+    
+    try (CloseableHttpResponse httpResponse = httpClient.execute(method,context); InputStream input = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
+      Date lastModifiedDate = readLastModifiedDate(httpResponse);
+      MimeType contentType = readContentType(httpResponse);
+      boolean readBody = since==null || lastModifiedDate==null || lastModifiedDate.getTime()>=since.getTime();
+      return new SimpleDataReference(broker.getBrokerUri(), broker.getEntityDefinition().getLabel(), fileUrl.toExternalForm(), lastModifiedDate, fileUrl.toURI(), readBody? IOUtils.toByteArray(input): null, contentType);
     }
   }
 

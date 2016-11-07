@@ -19,12 +19,18 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 
 /**
  * JSON serializer/deserializer utility class.
  */
 public class JsonSerializer {
+    private static final ObjectMapper mapper = new ObjectMapper();
+    static {
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }
 
   /**
    * Serialize object into JSON.
@@ -33,9 +39,6 @@ public class JsonSerializer {
    * @throws IOException if serializing fails
    */
   public static String serialize(Object def) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     return mapper.writeValueAsString(def);
   }
 
@@ -48,9 +51,6 @@ public class JsonSerializer {
    * @throws IOException if de-serializing definition fails
    */
   public static <T> T deserialize(String strDef, Class<T> clazz) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     return mapper.readValue(strDef, clazz);
   }
 
@@ -63,9 +63,18 @@ public class JsonSerializer {
    * @throws IOException if de-serializing definition fails
    */
   public static <T> T deserialize(Reader reader, Class<T> clazz) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     return mapper.readValue(reader, clazz);
+  }
+
+  /**
+   * De-serialize task definition.
+   * @param <T> type of the definition
+   * @param inputStream input stream
+   * @param clazz class of the definition
+   * @return definition
+   * @throws IOException if de-serializing definition fails
+   */
+  public static <T> T deserialize(InputStream inputStream, Class<T> clazz) throws IOException {
+    return mapper.readValue(inputStream, clazz);
   }
 }

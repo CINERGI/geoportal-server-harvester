@@ -26,14 +26,14 @@ import java.net.URISyntaxException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpRequestWrapper;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HttpContext;
@@ -43,12 +43,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Bots http client.
  */
-public class BotsHttpClient implements HttpClient, Closeable {
+public class BotsHttpClient extends CloseableHttpClient {
   private static final Logger LOG = LoggerFactory.getLogger(BotsHttpClient.class);
-  private final HttpClient client;
+  private final CloseableHttpClient client;
   private final Bots bots;
 
-  public BotsHttpClient(HttpClient client, Bots bots) {
+  public BotsHttpClient(CloseableHttpClient client, Bots bots) {
     this.client = client;
     this.bots = bots;
   }
@@ -69,7 +69,12 @@ public class BotsHttpClient implements HttpClient, Closeable {
   }
 
   @Override
-  public HttpResponse execute(HttpUriRequest request) throws IOException, ClientProtocolException {
+  protected CloseableHttpResponse doExecute(HttpHost target, HttpRequest request, HttpContext context) throws IOException, ClientProtocolException {
+    return execute(target, request, context);
+  }
+
+  @Override
+  public CloseableHttpResponse execute(HttpUriRequest request) throws IOException, ClientProtocolException {
     HttpRequestWrapper wrap = HttpRequestWrapper.wrap(request);
     adviseRobotsTxt(wrap.getURI());
     wrap.setURI(applyPHP(wrap.getURI()));
@@ -77,7 +82,7 @@ public class BotsHttpClient implements HttpClient, Closeable {
   }
 
   @Override
-  public HttpResponse execute(HttpUriRequest request, HttpContext context) throws IOException, ClientProtocolException {
+  public CloseableHttpResponse execute(HttpUriRequest request, HttpContext context) throws IOException, ClientProtocolException {
     HttpRequestWrapper wrap = HttpRequestWrapper.wrap(request);
     adviseRobotsTxt(wrap.getURI());
     wrap.setURI(applyPHP(wrap.getURI()));
@@ -85,7 +90,7 @@ public class BotsHttpClient implements HttpClient, Closeable {
   }
 
   @Override
-  public HttpResponse execute(HttpHost target, HttpRequest request) throws IOException, ClientProtocolException {
+  public CloseableHttpResponse execute(HttpHost target, HttpRequest request) throws IOException, ClientProtocolException {
     HttpRequestWrapper wrap = HttpRequestWrapper.wrap(request, target);
     adviseRobotsTxt(wrap.getURI());
     wrap.setURI(applyPHP(wrap.getURI()));
@@ -93,7 +98,7 @@ public class BotsHttpClient implements HttpClient, Closeable {
   }
 
   @Override
-  public HttpResponse execute(HttpHost target, HttpRequest request, HttpContext context) throws IOException, ClientProtocolException {
+  public CloseableHttpResponse execute(HttpHost target, HttpRequest request, HttpContext context) throws IOException, ClientProtocolException {
     HttpRequestWrapper wrap = HttpRequestWrapper.wrap(request, target);
     adviseRobotsTxt(wrap.getURI());
     wrap.setURI(applyPHP(wrap.getURI()));

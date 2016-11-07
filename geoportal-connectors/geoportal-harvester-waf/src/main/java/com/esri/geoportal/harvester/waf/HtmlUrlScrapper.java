@@ -15,7 +15,7 @@
  */
 package com.esri.geoportal.harvester.waf;
 
-import com.esri.geoportal.commons.http.BotsHttpClient;
+import com.esri.geoportal.commons.constants.HttpConstants;
 import static com.esri.geoportal.commons.utils.Constants.DEFAULT_REQUEST_CONFIG;
 import static com.esri.geoportal.commons.utils.HttpClientContextBuilder.createHttpClientContext;
 import com.esri.geoportal.commons.utils.SimpleCredentials;
@@ -25,15 +25,17 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpResponseException;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.client.CloseableHttpClient;
 
 /**
  * HTML URL scrapper.
  */
 /*package*/ class HtmlUrlScrapper {
-  private final BotsHttpClient httpClient;
+  private final CloseableHttpClient httpClient;
   private final SimpleCredentials creds;
 
   /**
@@ -41,7 +43,7 @@ import org.apache.http.client.protocol.HttpClientContext;
    * @param httpClient HTTP client
    * @param creds credentials
    */
-  public HtmlUrlScrapper(BotsHttpClient httpClient, SimpleCredentials creds) {
+  public HtmlUrlScrapper(CloseableHttpClient httpClient, SimpleCredentials creds) {
     this.httpClient = httpClient;
     this.creds = creds;
   }
@@ -57,9 +59,13 @@ import org.apache.http.client.protocol.HttpClientContext;
     ContentAnalyzer analyzer = new ContentAnalyzer(root);
     HttpGet method = new HttpGet(root.toExternalForm());
     method.setConfig(DEFAULT_REQUEST_CONFIG);
+    method.setHeader("User-Agent", HttpConstants.getUserAgent());
     HttpClientContext context = creds!=null && !creds.isEmpty()? createHttpClientContext(root, creds): null;
-    HttpResponse response = httpClient.execute(method, context);
-    try (InputStream input = response.getEntity().getContent();) {
+    
+    try (CloseableHttpResponse httpResponse = httpClient.execute(method, context); InputStream input = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String content = IOUtils.toString(input, "UTF-8");
       return analyzer.analyze(content);
     }

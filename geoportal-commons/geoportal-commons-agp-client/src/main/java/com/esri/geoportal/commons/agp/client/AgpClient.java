@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -42,7 +43,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 
 /**
@@ -52,15 +52,19 @@ public class AgpClient implements Closeable {
   private static final String QUERY_EXTRAS = "-type:\"Layer\" -type: \"Map Document\" -type:\"Map Package\" -type:\"Basemap Package\" -type:\"Mobile Basemap Package\" -type:\"Mobile Map Package\" -type:\"ArcPad Package\" -type:\"Project Package\" -type:\"Project Template\" -type:\"Desktop Style\" -type:\"Pro Map\" -type:\"Layout\" -type:\"Explorer Map\" -type:\"Globe Document\" -type:\"Scene Document\" -type:\"Published Map\" -type:\"Map Template\" -type:\"Windows Mobile Package\" -type:\"Layer Package\" -type:\"Explorer Layer\" -type:\"Geoprocessing Package\" -type:\"Desktop Application Template\" -type:\"Code Sample\" -type:\"Geoprocessing Package\" -type:\"Geoprocessing Sample\" -type:\"Locator Package\" -type:\"Workflow Manager Package\" -type:\"Windows Mobile Package\" -type:\"Explorer Add In\" -type:\"Desktop Add In\" -type:\"File Geodatabase\" -type:\"Feature Collection Template\" -type:\"Code Attachment\" -type:\"Featured Items\" -type:\"Symbol Set\" -type:\"Color Set\" -type:\"Windows Viewer Add In\" -type:\"Windows Viewer Configuration\"";
   
   private final URL rootUrl;
+  private final SimpleCredentials credentials;
   private final CloseableHttpClient httpClient;
   
   /**
    * Creates instance of the client.
+   * @param httpClient HTTP client
    * @param rootUrl root URL
+   * @param credentials credentials
    */
-  public AgpClient(URL rootUrl) {
+  public AgpClient(CloseableHttpClient httpClient, URL rootUrl, SimpleCredentials credentials) {
     this.rootUrl = adjustUrl(rootUrl);
-    this.httpClient = HttpClients.createDefault();
+    this.credentials = credentials;
+    this.httpClient = httpClient;
   }
 
   @Override
@@ -70,20 +74,23 @@ public class AgpClient implements Closeable {
 
   /**
    * Adds item.
-   * @param username user name
-   * @param folderId folder id
+   * @param owner owner
+   * @param folderId folder id (optional)
    * @param title title
    * @param description description
    * @param text text
+   * @param thumbnailUrl thumbnail url
    * @param itemType item type (must be a URL type)
+   * @param extent extent
    * @param typeKeywords type keywords
+   * @param tags tags tags
    * @param token token
    * @return add item response
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public ItemResponse addItem(String username, String folderId, String title, String description, String text, ItemType itemType, String [] typeKeywords, String token) throws IOException, URISyntaxException {
-    URIBuilder builder = new URIBuilder(addItemUri(username, folderId));
+  public ItemResponse addItem(String owner, String folderId, String title, String description, String text, URL thumbnailUrl, ItemType itemType, Double [] extent, String [] typeKeywords, String [] tags, String token) throws IOException, URISyntaxException {
+    URIBuilder builder = new URIBuilder(addItemUri(owner, StringUtils.trimToNull(folderId)));
     
     HttpPost req = new HttpPost(builder.build());
     HashMap<String, String> params = new HashMap<>();
@@ -92,7 +99,18 @@ public class AgpClient implements Closeable {
     params.put("description", description);
     params.put("type", itemType.getTypeName());
     params.put("text", text);
-    params.put("typeKeywords", typeKeywords!=null? Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")):"");
+    if (thumbnailUrl!=null) {
+      params.put("thumbnailurl", thumbnailUrl.toExternalForm());
+    }
+    if (extent!=null && extent.length==4) {
+      params.put("extent",Arrays.asList(extent).stream().map(Object::toString).collect(Collectors.joining(",")));
+    }
+    if (typeKeywords!=null) {
+      params.put("typeKeywords", Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")));
+    }
+    if (tags!=null) {
+      params.put("tags", Arrays.asList(tags).stream().collect(Collectors.joining(",")));
+    }
     params.put("token", token);
     
     req.setEntity(createEntity(params));
@@ -102,20 +120,23 @@ public class AgpClient implements Closeable {
 
   /**
    * Adds item.
-   * @param username user name
-   * @param folderId folder id
+   * @param owner user name
+   * @param folderId folder id (optional)
    * @param title title
    * @param description description
    * @param url URL
+   * @param thumbnailUrl thumbnail url
    * @param itemType item type (must be a URL type)
+   * @param extent extent
    * @param typeKeywords type keywords
+   * @param tags tags tags
    * @param token token
    * @return add item response
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public ItemResponse addItem(String username, String folderId, String title, String description, URL url, ItemType itemType, String [] typeKeywords, String token) throws IOException, URISyntaxException {
-    URIBuilder builder = new URIBuilder(addItemUri(username, folderId));
+  public ItemResponse addItem(String owner, String folderId, String title, String description, URL url, URL thumbnailUrl, ItemType itemType, Double [] extent, String [] typeKeywords, String [] tags, String token) throws IOException, URISyntaxException {
+    URIBuilder builder = new URIBuilder(addItemUri(owner, StringUtils.trimToNull(folderId)));
     
     HttpPost req = new HttpPost(builder.build());
     HashMap<String, String> params = new HashMap<>();
@@ -124,7 +145,18 @@ public class AgpClient implements Closeable {
     params.put("description", description);
     params.put("type", itemType.getTypeName());
     params.put("url", url.toExternalForm());
-    params.put("typeKeywords", typeKeywords!=null? Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")):"");
+    if (thumbnailUrl!=null) {
+      params.put("thumbnailurl", thumbnailUrl.toExternalForm());
+    }
+    if (extent!=null && extent.length==4) {
+      params.put("extent",Arrays.asList(extent).stream().map(Object::toString).collect(Collectors.joining(",")));
+    }
+    if (typeKeywords!=null) {
+      params.put("typeKeywords", Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")));
+    }
+    if (tags!=null) {
+      params.put("tags", Arrays.asList(tags).stream().collect(Collectors.joining(",")));
+    }
     params.put("token", token);
     
     req.setEntity(createEntity(params));
@@ -134,21 +166,24 @@ public class AgpClient implements Closeable {
 
   /**
    * Updates item item.
-   * @param username user name
-   * @param folderId folder id
+   * @param owner user name
+   * @param folderId folder id (optional)
    * @param itemId item id
    * @param title title
    * @param description description
    * @param text text
+   * @param thumbnailUrl thumbnail URL
    * @param itemType item type (must be a URL type)
+   * @param extent extent
    * @param typeKeywords type keywords
+   * @param tags tags tags
    * @param token token
    * @return add item response
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public ItemResponse updateItem(String username, String folderId, String itemId, String title, String description, String text, ItemType itemType, String [] typeKeywords, String token) throws IOException, URISyntaxException {
-    URIBuilder builder = new URIBuilder(updateItemUri(username, folderId, itemId));
+  public ItemResponse updateItem(String owner, String folderId, String itemId, String title, String description, String text, URL thumbnailUrl, ItemType itemType, Double [] extent, String [] typeKeywords, String [] tags, String token) throws IOException, URISyntaxException {
+    URIBuilder builder = new URIBuilder(updateItemUri(owner, StringUtils.trimToNull(folderId), itemId));
     
     HttpPost req = new HttpPost(builder.build());
     HashMap<String, String> params = new HashMap<>();
@@ -157,7 +192,18 @@ public class AgpClient implements Closeable {
     params.put("description", description);
     params.put("type", itemType.getTypeName());
     params.put("text", text);
-    params.put("typeKeywords", typeKeywords!=null? Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")):"");
+    if (thumbnailUrl!=null) {
+      params.put("thumbnailurl", thumbnailUrl.toExternalForm());
+    }
+    if (extent!=null && extent.length==4) {
+      params.put("extent",Arrays.asList(extent).stream().map(Object::toString).collect(Collectors.joining(",")));
+    }
+    if (typeKeywords!=null) {
+      params.put("typeKeywords", Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")));
+    }
+    if (tags!=null) {
+      params.put("tags", Arrays.asList(tags).stream().collect(Collectors.joining(",")));
+    }
     params.put("token", token);
     
     req.setEntity(createEntity(params));
@@ -166,22 +212,46 @@ public class AgpClient implements Closeable {
   }
 
   /**
+   * Reads item information.
+   * @param itemId item id
+   * @param token token
+   * @return item entry
+   * @throws URISyntaxException if invalid URL
+   * @throws IOException if operation fails
+   */
+  public ItemEntry readItem(String itemId, String token) throws IOException, URISyntaxException {
+    URIBuilder builder = new URIBuilder(itemInfoUri(itemId));
+    
+    
+    builder.setParameter("f", "json");
+    if (token!=null) {
+      builder.setParameter("token", token);
+    }
+    HttpGet req = new HttpGet(builder.build());
+    
+    return execute(req,ItemEntry.class);
+  }
+  
+  /**
    * Adds item.
-   * @param username user name
-   * @param folderId folder id
+   * @param owner user name
+   * @param folderId folder id (optional)
    * @param itemId item id
    * @param title title
    * @param description description
    * @param url URL
+   * @param thumbnailUrl thumbnail URL
    * @param itemType item type (must be a URL type)
+   * @param extent extent
    * @param typeKeywords type keywords
+   * @param tags tags tags
    * @param token token
    * @return add item response
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public ItemResponse updateItem(String username, String folderId, String itemId, String title, String description, URL url, ItemType itemType, String [] typeKeywords, String token) throws IOException, URISyntaxException {
-    URIBuilder builder = new URIBuilder(updateItemUri(username, folderId, itemId));
+  public ItemResponse updateItem(String owner, String folderId, String itemId, String title, String description, URL url, URL thumbnailUrl, ItemType itemType, Double [] extent, String [] typeKeywords, String [] tags, String token) throws IOException, URISyntaxException {
+    URIBuilder builder = new URIBuilder(updateItemUri(owner, StringUtils.trimToNull(folderId), itemId));
     
     HttpPost req = new HttpPost(builder.build());
     HashMap<String, String> params = new HashMap<>();
@@ -190,7 +260,18 @@ public class AgpClient implements Closeable {
     params.put("description", description);
     params.put("type", itemType.getTypeName());
     params.put("url", url.toExternalForm());
-    params.put("typeKeywords", typeKeywords!=null? Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")):"");
+    if (thumbnailUrl!=null) {
+      params.put("thumbnailurl", thumbnailUrl.toExternalForm());
+    }
+    if (extent!=null && extent.length==4) {
+      params.put("extent",Arrays.asList(extent).stream().map(Object::toString).collect(Collectors.joining(",")));
+    }
+    if (typeKeywords!=null) {
+      params.put("typeKeywords", Arrays.asList(typeKeywords).stream().collect(Collectors.joining(",")));
+    }
+    if (tags!=null) {
+      params.put("tags", Arrays.asList(tags).stream().collect(Collectors.joining(",")));
+    }
     params.put("token", token);
     
     req.setEntity(createEntity(params));
@@ -200,8 +281,8 @@ public class AgpClient implements Closeable {
   
   /**
    * Sharing item.
-   * @param username user name
-   * @param folderId folder id
+   * @param owner user name
+   * @param folderId folder id (optional)
    * @param itemId item id
    * @param everyone <code>true</code> to share with everyone
    * @param org <code>true</code> to share with group
@@ -211,8 +292,8 @@ public class AgpClient implements Closeable {
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public ShareResponse share(String username, String folderId, String itemId, boolean everyone, boolean org, String [] groups, String token)  throws URISyntaxException, IOException {
-    URIBuilder builder = new URIBuilder(shareUri(username, folderId, itemId));
+  public ShareResponse share(String owner, String folderId, String itemId, boolean everyone, boolean org, String [] groups, String token)  throws URISyntaxException, IOException {
+    URIBuilder builder = new URIBuilder(shareUri(owner, folderId, itemId));
     
     HttpPost req = new HttpPost(builder.build());
     HashMap<String, String> params = new HashMap<>();
@@ -229,7 +310,7 @@ public class AgpClient implements Closeable {
   
   /**
    * Deletes item.
-   * @param username user name
+   * @param owner owner
    * @param folderId folder id
    * @param itemId item id
    * @param token token
@@ -237,8 +318,8 @@ public class AgpClient implements Closeable {
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public DeleteResponse delete(String username, String folderId, String itemId, String token)  throws URISyntaxException, IOException {
-    URIBuilder builder = new URIBuilder(deleteUri(username, folderId, itemId));
+  public DeleteResponse delete(String owner, String folderId, String itemId, String token)  throws URISyntaxException, IOException {
+    URIBuilder builder = new URIBuilder(deleteUri(owner, folderId, itemId));
     
     builder.setParameter("f", "json");
     builder.setParameter("token", token);
@@ -250,8 +331,8 @@ public class AgpClient implements Closeable {
   
   /**
    * Lists content.
-   * @param username user name
-   * @param folder folder (optional)
+   * @param owner owner
+   * @param folderId folder id (optional)
    * @param num number items to return
    * @param start start item
    * @param token token (optional)
@@ -259,10 +340,12 @@ public class AgpClient implements Closeable {
    * @throws URISyntaxException if invalid URL
    * @throws IOException if operation fails
    */
-  public ContentResponse listContent(String username, String folder, long num, long start, String token) throws URISyntaxException, IOException {
-    URIBuilder builder = new URIBuilder(userUri(username, folder));
+  public ContentResponse listContent(String owner, String folderId, long num, long start, String token) throws URISyntaxException, IOException {
+    URIBuilder builder = new URIBuilder(userUri(owner, folderId));
     
     builder.setParameter("f", "json");
+    builder.setParameter("num", Long.toString(num));
+    builder.setParameter("start", Long.toString(start));
     if (token!=null) {
       builder.setParameter("token", token);
     }
@@ -298,12 +381,11 @@ public class AgpClient implements Closeable {
    * Generates token.
    *
    * @param minutes expiration in minutes.
-   * @param credentials credentials.
    * @return token response
    * @throws URISyntaxException if invalid URL
    * @throws IOException if accessing token fails
    */
-  public TokenResponse generateToken(int minutes, SimpleCredentials credentials) throws URISyntaxException, IOException {
+  public TokenResponse generateToken(int minutes) throws URISyntaxException, IOException {
     HttpPost req = new HttpPost(generateTokenUri());
     
     HashMap<String, String> params = new HashMap<>();
@@ -321,48 +403,57 @@ public class AgpClient implements Closeable {
     return execute(req,TokenResponse.class);
   }
   
-  private URI updateItemUri(String username, String folderId, String itemId) throws URISyntaxException {
+  private URI itemInfoUri(String itemId) throws URISyntaxException {
     URIBuilder builder = new URIBuilder();
     builder.setScheme(rootUrl.toURI().getScheme())
            .setHost(rootUrl.toURI().getHost())
            .setPort(rootUrl.toURI().getPort())
-           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + username + (folderId!=null? "/" +folderId: "") +"/content/" + itemId + "/update");
+           .setPath(rootUrl.toURI().getPath() + "sharing/content/items/" + itemId);
+    return builder.build();
+  }
+  
+  private URI updateItemUri(String owner, String folderId, String itemId) throws URISyntaxException {
+    URIBuilder builder = new URIBuilder();
+    builder.setScheme(rootUrl.toURI().getScheme())
+           .setHost(rootUrl.toURI().getHost())
+           .setPort(rootUrl.toURI().getPort())
+           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + owner + (folderId!=null? "/" +folderId: "") +"/items/" + itemId + "/update");
     return builder.build();
   }
 
-  private URI addItemUri(String username, String folderId) throws URISyntaxException {
+  private URI addItemUri(String owner, String folderId) throws URISyntaxException {
     URIBuilder builder = new URIBuilder();
     builder.setScheme(rootUrl.toURI().getScheme())
            .setHost(rootUrl.toURI().getHost())
            .setPort(rootUrl.toURI().getPort())
-           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + username + (folderId!=null? "/" +folderId: "") +"/addItem");
+           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + owner + (folderId!=null? "/" +folderId: "") +"/addItem");
     return builder.build();
   }
   
-  private URI shareUri(String username, String folderId, String itemId) throws URISyntaxException {
+  private URI shareUri(String owner, String folderId, String itemId) throws URISyntaxException {
     URIBuilder builder = new URIBuilder();
     builder.setScheme(rootUrl.toURI().getScheme())
            .setHost(rootUrl.toURI().getHost())
            .setPort(rootUrl.toURI().getPort())
-           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + username + (folderId!=null? "/" +folderId: "") +"/items/" + itemId + "/share");
+           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + owner + (folderId!=null? "/" +folderId: "") +"/items/" + itemId + "/share");
     return builder.build();
   }
   
-  private URI deleteUri(String username, String folderId, String itemId) throws URISyntaxException {
+  private URI deleteUri(String owner, String folderId, String itemId) throws URISyntaxException {
     URIBuilder builder = new URIBuilder();
     builder.setScheme(rootUrl.toURI().getScheme())
            .setHost(rootUrl.toURI().getHost())
            .setPort(rootUrl.toURI().getPort())
-           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + username + (folderId!=null? "/" +folderId: "") +"/items/" + itemId + "/delete");
+           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + owner + (folderId!=null? "/" +folderId: "") +"/items/" + itemId + "/delete");
     return builder.build();
   }
   
-  private URI userUri(String username, String folderId) throws URISyntaxException {
+  private URI userUri(String owner, String folderId) throws URISyntaxException {
     URIBuilder builder = new URIBuilder();
     builder.setScheme(rootUrl.toURI().getScheme())
            .setHost(rootUrl.toURI().getHost())
            .setPort(rootUrl.toURI().getPort())
-           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + username + (folderId!=null? "/"+folderId: ""));
+           .setPath(rootUrl.toURI().getPath() + "sharing/rest/content/users/" + owner + (folderId!=null? "/"+folderId: ""));
     return builder.build();
   }
   
@@ -376,7 +467,8 @@ public class AgpClient implements Closeable {
   }
   
   private URI generateTokenUri() throws URISyntaxException {
-    return rootUrl.toURI().resolve("sharing/generateToken");
+    URI uri = rootUrl.toURI().resolve("sharing/rest/generateToken");
+    return new URI("https", uri.getSchemeSpecificPart(), uri.getFragment());
   }
   
   private HttpEntity createEntity(Map<String, String> params) throws UnsupportedEncodingException {
@@ -387,6 +479,9 @@ public class AgpClient implements Closeable {
   private <T> T execute(HttpUriRequest req, Class<T> clazz) throws IOException {
 
     try (CloseableHttpResponse httpResponse = httpClient.execute(req); InputStream contentStream = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String responseContent = IOUtils.toString(contentStream, "UTF-8");
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

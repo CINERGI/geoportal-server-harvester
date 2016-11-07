@@ -20,8 +20,10 @@ import com.esri.geoportal.commons.gpt.client.PublishRequest;
 import com.esri.geoportal.commons.gpt.client.PublishResponse;
 import com.esri.geoportal.harvester.api.ex.DataOutputException;
 import com.esri.geoportal.harvester.api.DataReference;
+import com.esri.geoportal.harvester.api.base.BaseProcessInstanceListener;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.defs.PublishingStatus;
+import com.esri.geoportal.harvester.api.ex.DataException;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
 import com.esri.geoportal.harvester.api.specs.OutputBroker;
 import com.esri.geoportal.harvester.api.specs.OutputConnector;
@@ -29,7 +31,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -51,6 +52,7 @@ import org.slf4j.LoggerFactory;
   private final GptBrokerDefinitionAdaptor definition;
   private final Set<String> existing = new HashSet<>();
   private Client client;
+  private volatile boolean preventCleanup;
 
   private static String generateSBOM() {
     try {
@@ -78,6 +80,12 @@ import org.slf4j.LoggerFactory;
     client = new Client(definition.getHostUrl(), definition.getCredentials());
 
     if (definition.getCleanup()) {
+      context.addListener(new BaseProcessInstanceListener() {
+        @Override
+        public void onError(DataException ex) {
+          preventCleanup = true;
+        }
+      });
       try {
         List<String> existingIds = client.queryBySource(context.getTask().getDataSource().getBrokerUri().toASCIIString());
         existing.addAll(existingIds);
@@ -90,7 +98,7 @@ import org.slf4j.LoggerFactory;
   @Override
   public void terminate() {
     try {
-      if (definition.getCleanup()) {
+      if (definition.getCleanup() && !preventCleanup) {
         for (String id : existing) {
           client.delete(id);
         }
@@ -116,10 +124,15 @@ import org.slf4j.LoggerFactory;
       data.src_source_name_s = ref.getBrokerName();
       data.src_uri_s = ref.getSourceUri().toASCIIString();
       data.src_lastupdate_dt = ref.getLastModifiedDate() != null ? fromatDate(ref.getLastModifiedDate()) : null;
-      data.xml = new String(ref.getContent(), "UTF-8");
-      if (data.xml.startsWith(SBOM)) {
-        data.xml = data.xml.substring(1);
+      
+      byte[] content = ref.getContent();
+      if (content!=null) {
+        data.xml = new String(content, "UTF-8");
+        if (data.xml.startsWith(SBOM)) {
+          data.xml = data.xml.substring(1);
+        }
       }
+      
       PublishResponse response = client.publish(data, definition.getForceAdd());
       if (response == null) {
         throw new DataOutputException(this, "No response received");
@@ -130,7 +143,7 @@ import org.slf4j.LoggerFactory;
       existing.remove(response.getId());
       return response.getStatus().equalsIgnoreCase("created") ? PublishingStatus.CREATED : PublishingStatus.UPDATED;
     } catch (IOException | URISyntaxException ex) {
-      throw new DataOutputException(this, "Error publishing data.", ex);
+      throw new DataOutputException(this, String.format("Error publishing data: %s", ref), ex);
     }
   }
 

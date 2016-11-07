@@ -31,12 +31,12 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 
 /**
@@ -50,11 +50,12 @@ public class AgsClient implements Closeable {
   /**
    * Creates instance of the client.
    *
+   * @param httpClient HTTP client
    * @param rootUrl "arcgis/rest" root URL
    */
-  public AgsClient(URL rootUrl) {
+  public AgsClient(CloseableHttpClient httpClient, URL rootUrl) {
     this.rootUrl = adjustUrl(rootUrl);
-    this.httpClient = HttpClients.createDefault();
+    this.httpClient = httpClient;
   }
 
   @Override
@@ -87,6 +88,9 @@ public class AgsClient implements Closeable {
     post.setEntity(entity);
 
     try (CloseableHttpResponse httpResponse = httpClient.execute(post); InputStream contentStream = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String responseContent = IOUtils.toString(contentStream, "UTF-8");
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -108,6 +112,9 @@ public class AgsClient implements Closeable {
     HttpGet get = new HttpGet(url + String.format("?f=%s", "json"));
 
     try (CloseableHttpResponse httpResponse = httpClient.execute(get); InputStream contentStream = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String responseContent = IOUtils.toString(contentStream, "UTF-8");
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -132,6 +139,9 @@ public class AgsClient implements Closeable {
     HttpGet get = new HttpGet(url + String.format("?f=%s", "json"));
 
     try (CloseableHttpResponse httpResponse = httpClient.execute(get); InputStream contentStream = httpResponse.getEntity().getContent();) {
+      if (httpResponse.getStatusLine().getStatusCode()>=400) {
+        throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
+      }
       String responseContent = IOUtils.toString(contentStream, "UTF-8");
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

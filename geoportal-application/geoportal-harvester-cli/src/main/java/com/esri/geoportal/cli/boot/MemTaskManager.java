@@ -13,7 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.esri.geoportal.cli.boot;
+
+import com.esri.geoportal.harvester.api.defs.TaskDefinition;
+import com.esri.geoportal.harvester.engine.managers.TaskManager;
+
 /**
- * ArcGIS Portal input broker.
+ * In-manager task manager.
  */
-package com.esri.geoportal.harvester.agp;
+public class MemTaskManager extends MemCruds<TaskDefinition> implements TaskManager {
+  
+}
