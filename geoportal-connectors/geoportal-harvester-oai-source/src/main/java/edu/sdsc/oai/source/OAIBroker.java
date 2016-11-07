@@ -1,47 +1,32 @@
 package edu.sdsc.oai.source;
 
+import com.esri.geoportal.commons.constants.MimeType;
 import com.esri.geoportal.harvester.api.DataReference;
 import com.esri.geoportal.harvester.api.base.SimpleDataReference;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.ex.DataInputException;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
-import com.esri.geoportal.commons.constants.MimeType;
 import com.esri.geoportal.harvester.api.specs.InputBroker;
 import com.esri.geoportal.harvester.api.specs.InputConnector;
-
-import com.lyncode.xoai.model.xoai.XOAIMetadata;
+import com.lyncode.xoai.model.oaipmh.Header;
+import com.lyncode.xoai.model.oaipmh.ListRecords;
+import com.lyncode.xoai.model.oaipmh.Metadata;
+import com.lyncode.xoai.model.oaipmh.Record;
 import com.lyncode.xoai.serviceprovider.ServiceProvider;
 import com.lyncode.xoai.serviceprovider.client.HttpOAIClient;
 import com.lyncode.xoai.serviceprovider.client.OAIClient;
 import com.lyncode.xoai.serviceprovider.model.Context;
-import com.lyncode.xoai.model.oaipmh.*;
 import com.lyncode.xoai.serviceprovider.parameters.ListRecordsParameters;
 import com.lyncode.xoai.xml.XmlWriter;
-
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
-
-
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.Iterator;
-import java.util.List;
-
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.transform.Transformer;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 
 /**
@@ -79,8 +64,8 @@ public class OAIBroker implements InputBroker  {
 
     }
     @Override
-    public Iterator iterator(Map<String, Object> attributes) throws DataInputException {
-      return new OAIIterator();
+    public Iterator iterator(IteratorContext iteratorContext) throws DataInputException {
+      return new OAIIterator(iteratorContext);
 
     }
     @Override
@@ -141,6 +126,16 @@ public class OAIBroker implements InputBroker  {
 //            pids.add(o.getIdentifier());
 //        }
  //       return pids.iterator();
+        private final IteratorContext iteratorContext;
+
+        /**
+         * Creates instance of the iterator.
+         * @param iteratorContext iterator context
+         */
+        public OAIIterator(IteratorContext iteratorContext) {
+            this.iteratorContext = iteratorContext;
+        }
+
         @Override
         public boolean hasNext() throws DataInputException {
             try {

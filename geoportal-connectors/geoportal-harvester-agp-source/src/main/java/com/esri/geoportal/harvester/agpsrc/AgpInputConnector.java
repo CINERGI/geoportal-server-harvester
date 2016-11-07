@@ -15,18 +15,20 @@
  */
 package com.esri.geoportal.harvester.agpsrc;
 
-import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_PASSWORD;
-import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_USERNAME;
 import com.esri.geoportal.commons.meta.MetaBuilder;
-import static com.esri.geoportal.harvester.agpsrc.AgpInputBrokerDefinitionAdaptor.P_FOLDER_ID;
-import static com.esri.geoportal.harvester.agpsrc.AgpInputBrokerDefinitionAdaptor.P_HOST_URL;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.defs.UITemplate;
 import com.esri.geoportal.harvester.api.ex.InvalidDefinitionException;
 import com.esri.geoportal.harvester.api.specs.InputBroker;
 import com.esri.geoportal.harvester.api.specs.InputConnector;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_PASSWORD;
+import static com.esri.geoportal.commons.constants.CredentialsConstants.P_CRED_USERNAME;
+import static com.esri.geoportal.harvester.agpsrc.AgpInputBrokerDefinitionAdaptor.P_FOLDER_ID;
+import static com.esri.geoportal.harvester.agpsrc.AgpInputBrokerDefinitionAdaptor.P_HOST_URL;
 
 /**
  * ArcGIS Portal output connector.

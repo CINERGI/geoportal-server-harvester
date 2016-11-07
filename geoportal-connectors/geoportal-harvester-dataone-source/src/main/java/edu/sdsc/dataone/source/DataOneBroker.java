@@ -1,35 +1,28 @@
 package edu.sdsc.dataone.source;
 
+import com.esri.geoportal.commons.constants.MimeType;
 import com.esri.geoportal.harvester.api.DataReference;
 import com.esri.geoportal.harvester.api.base.SimpleDataReference;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.ex.DataInputException;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
-import com.esri.geoportal.commons.constants.MimeType;
 import com.esri.geoportal.harvester.api.specs.InputBroker;
 import com.esri.geoportal.harvester.api.specs.InputConnector;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.dataone.client.v1.CNode;
-import org.dataone.client.v1.MNode;
 import org.dataone.client.v1.itk.D1Client;
-import org.dataone.client.rest.RestClient;
-import  org.dataone.client.rest.DefaultHttpMultipartRestClient;
-import org.dataone.client.v1.itk.D1Object;
-import org.dataone.configuration.Settings;
-import org.dataone.service.exceptions.*;
+import org.dataone.service.exceptions.NotAuthorized;
+import org.dataone.service.exceptions.NotFound;
+import org.dataone.service.exceptions.ServiceFailure;
 import org.dataone.service.types.v1.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
+import java.util.List;
 import java.util.stream.Collectors;
 
 
@@ -68,8 +61,9 @@ public class DataOneBroker implements InputBroker  {
 
     }
     @Override
-    public Iterator iterator(Map<String, Object> attributes) throws DataInputException {
-      return new DataOneIterator();
+    //public Iterator iterator(Map<String, Object> attributes) throws DataInputException {
+        public Iterator iterator(IteratorContext iteratorContext) throws DataInputException {
+      return new DataOneIterator(iteratorContext);
 
     }
     @Override
@@ -112,6 +106,15 @@ public class DataOneBroker implements InputBroker  {
      * DataOne iterator.
      */
     private class DataOneIterator implements InputBroker.Iterator {
+        private final IteratorContext iteratorContext;
+
+        /**
+         * Creates instance of the iterator.
+         * @param iteratorContext iterator context
+         */
+        public DataOneIterator(IteratorContext iteratorContext) {
+            this.iteratorContext = iteratorContext;
+        }
 
 //        ObjectList objectList  = client.listObjects(session, null, null, null,
 //                null,null,null, null);

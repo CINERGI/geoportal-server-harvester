@@ -1,15 +1,18 @@
 package edu.sdsc.oai.source;
 
-import com.esri.geoportal.harvester.api.defs.EntityDefinition;
-import com.esri.geoportal.harvester.api.defs.Task;
-import com.esri.geoportal.harvester.api.specs.InputBroker;
+import com.esri.geoportal.harvester.api.ProcessInstance;
 import com.esri.geoportal.harvester.api.base.DataCollector;
 import com.esri.geoportal.harvester.api.base.DataPrintStreamOutput;
 import com.esri.geoportal.harvester.api.base.SimpleInitContext;
-import java.net.URL;
-import java.util.Arrays;
+import com.esri.geoportal.harvester.api.defs.EntityDefinition;
+import com.esri.geoportal.harvester.api.defs.Task;
+import com.esri.geoportal.harvester.api.specs.InputBroker;
+import com.esri.geoportal.harvester.console.ConsoleBrokerDefinitionAdaptor;
+import com.esri.geoportal.harvester.console.ConsoleConnector;
 
-import com.esri.geoportal.harvester.console.*;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Created by valentin on 8/30/16.
@@ -47,8 +50,9 @@ public class OAIApplication {
 
         InputBroker d1ib = null;
         try {
+            ArrayList<ProcessInstance.Listener> listeners = new ArrayList<>();
             d1ib = connector.createBroker(def);
-            d1ib.initialize(new SimpleInitContext(new Task(null, d1ib, null)));
+            d1ib.initialize(new SimpleInitContext(new Task(null, d1ib, null),listeners));
 //            DataCollector dataCollector =
 //                    new DataCollector(d1ib,
 //                            Arrays.asList(new DataPrintStreamOutput[]{destination}));
@@ -56,7 +60,7 @@ public class OAIApplication {
                     new DataCollector(d1ib,
                             Arrays.asList(
                                     conCon.createBroker(conDef)
-                            )
+                            ),listeners
                     )
                     ;
             dataCollector.collect();
