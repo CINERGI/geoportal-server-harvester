@@ -22,8 +22,9 @@
         <module>geoportal-harvester-gptsrc</module>
         <module>geoportal-harvester-ckan</module>
         <module>geoportal-harvester-migration</module>
-        <module>geoportal-harvester-dataone-source</module>
+       <module>geoportal-harvester-dataone-source</module>
         <module>geoportal-harvester-oai-source</module>
+
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

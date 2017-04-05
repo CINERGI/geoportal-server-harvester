@@ -67,30 +67,13 @@
           <artifactId>slf4j-jdk14</artifactId>
           <version>1.7.20</version>
         </dependency>
-        <dependency>
-            <groupId>com.esri.geoportal</groupId>
-            <artifactId>geoportal-havester-oai-source</artifactId>
-            <version>2.5.1-SNAPSHOT</version>
 
-        </dependency>
-        <dependency>
-            <groupId>com.esri.geoportal</groupId>
-            <artifactId>geoportal-havester-dataone-source</artifactId>
-            <version>2.5.1-SNAPSHOT</version>
-
-        </dependency>
-        <dependency>
-            <!-- w/o this httpclient 4.2.1 was installed. need at least 4.3 for dataone -->
-            <groupId>org.apache.httpcomponents</groupId>
+       <dependency>
+         <!--    w/o this httpclient 4.2.1 was installed. need at least 4.3 for dataone
+         4.5.2 -->
+           <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
             <version>4.5.2</version>
-        </dependency>
-        <dependency>
-            <!-- w/o this dataone fails.
-             Feature 'http://javax.xml.XMLConstants/feature/secure-processing' not recognized-->
-            <groupId>xerces</groupId>
-            <artifactId>xercesImpl</artifactId>
-            <version>2.11.0</version>
         </dependency>
 
     </dependencies>

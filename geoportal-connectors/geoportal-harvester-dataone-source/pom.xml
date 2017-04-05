@@ -43,13 +43,45 @@
             <groupId>org.dataone</groupId>
             <artifactId>d1_libclient_java</artifactId>
             <version>2.3.0</version>
+
+            <exclusions>
+                <exclusion>  <!-- Old Jackson library. conflicts with new version -->
+
+                    <groupId>org.codehaus.woodstox</groupId>
+                    <artifactId>wstx-asl</artifactId>
+
+
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.dataone</groupId>
             <artifactId>d1_common_java</artifactId>
             <version>2.3.0</version>
-        </dependency>
+            <exclusions>
+                <exclusion>  <!-- Old Jackson library. conflicts with new version -->
 
+                    <groupId>org.codehaus.woodstox</groupId>
+                    <artifactId>wstx-asl</artifactId>
+
+
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.googlecode.foresite-toolkit</groupId>
+            <artifactId>foresite</artifactId>
+            <version>0.9</version>
+            <exclusions>
+                <exclusion>  <!-- Old Jackson library. conflicts with new version -->
+
+                    <groupId>org.codehaus.woodstox</groupId>
+                    <artifactId>wstx-asl</artifactId>
+
+
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
 </project>

@@ -70,16 +70,35 @@
             <artifactId>geoportal-harvester-ckan</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>geoportal-havester-dataone-source</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>geoportal-havester-oai-source</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>geoportal-havester-dataone-source</artifactId>
+                  <version>${project.version}</version>
+                    <exclusions>
+                        <exclusion>  <!-- declare the exclusion here -->
+
+                                <groupId>org.codehaus.woodstox</groupId>
+                                <artifactId>wstx-asl</artifactId>
+
+
+                        </exclusion>
+                    </exclusions>
+      </dependency>
+          <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>geoportal-havester-oai-source</artifactId>
+                  <version>${project.version}</version>
+              <exclusions>
+                  <exclusion>  <!-- declare the exclusion here -->
+
+                      <groupId>org.codehaus.woodstox</groupId>
+                      <artifactId>wstx-asl</artifactId>
+
+
+                  </exclusion>
+              </exclusions>
+              </dependency>
+
     </dependencies>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
