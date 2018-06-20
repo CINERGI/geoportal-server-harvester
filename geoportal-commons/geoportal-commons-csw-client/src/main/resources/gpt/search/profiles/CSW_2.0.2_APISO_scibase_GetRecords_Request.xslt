@@ -51,6 +51,11 @@
               <csw:Constraint version="1.1.0">
               <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc" xmlns="http://www.opengis.net/ogc"
                           xmlns:gml="http://www.opengis.net/gml">
+              <!--  <ogc:PropertyIsLike escape="" singleChar="_" wildCard="%">
+                  <ogc:PropertyName>AnyText</ogc:PropertyName>
+                  <ogc:Literal>Geological</ogc:Literal>
+                </ogc:PropertyIsLike>
+                -->
                 <!-- Key Word search -->
                 <xsl:apply-templates select="/GetRecords/KeyWord"/>
               </ogc:Filter>  </csw:Constraint>

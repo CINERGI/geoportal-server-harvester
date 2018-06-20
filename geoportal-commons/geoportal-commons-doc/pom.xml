@@ -12,10 +12,30 @@
   <packaging>jar</packaging>
   <name>Esri :: Geoportal Server :: Commons :: DOC</name>
   <dependencies>
+      <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>geoportal-commons-meta</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-parsers</artifactId>
+      <version>1.18</version>
+      <exclusions>
+        <exclusion>  <!-- declare the exclusion here -->
+          <groupId>org.codehaus.woodstox</groupId>
+          <artifactId>woodstox-core-asl</artifactId>
+        </exclusion>
+
+      </exclusions>
+  </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>geoportal-commons-meta</artifactId>
-      <version>${project.version}</version>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.5</version>
+      <scope>test</scope>
     </dependency>
+
   </dependencies>
 </project>
