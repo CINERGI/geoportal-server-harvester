@@ -14,27 +14,10 @@
  */
 package com.esri.geoportal.base.security;
 import com.esri.geoportal.base.util.JsonUtil;
-// import com.esri.geoportal.base.util.Val;
-// import com.esri.geoportal.context.GeoportalContext;
-
-import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
-import java.net.URLEncoder;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.json.JsonArray;
-import javax.json.JsonObject;
 import org.apache.commons.lang3.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -45,6 +28,18 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
+import java.net.URLEncoder;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
+
+// import com.esri.geoportal.base.util.Val;
+// import com.esri.geoportal.context.GeoportalContext;
 
 /**
  * Authentication for ArcGIS OAuth2.
@@ -223,12 +218,13 @@ public class ArcGISAuthenticationProviderForHarvester implements AuthenticationP
     boolean hasOrgPubRole = false;
     boolean hasOrgUserRole = false; 
 
-    String restBaseUrl = this.getRestUrl();
-    String url = restBaseUrl+"/community/self/";
-    try {
-      url += "?f=json&token="+URLEncoder.encode(token,"UTF-8");
-    } catch (UnsupportedEncodingException e) {}
-    /*
+//    String restBaseUrl = this.getRestUrl();
+//    String url = restBaseUrl+"/community/self/";
+//    try {
+//      url += "?f=json&token="+URLEncoder.encode(token,"UTF-8");
+//    } catch (UnsupportedEncodingException e) {}
+//
+/*
     String url = restBaseUrl+"/community/users/";
     try {
       url += URLEncoder.encode(username,"UTF-8");
@@ -242,7 +238,7 @@ public class ArcGISAuthenticationProviderForHarvester implements AuthenticationP
       headers.add("Referer",referer);
     }
     HttpEntity<String> requestEntity = new HttpEntity<>(headers);
-    ResponseEntity<String> responseEntity = rest.exchange(url,HttpMethod.GET,requestEntity,String.class);
+    ResponseEntity<String> responseEntity = rest.exchange(this.getAuthorizeUrl(),HttpMethod.GET,requestEntity,String.class);
     String response = responseEntity.getBody();
     //System.err.println(response);;
     //if (response != null) LOGGER.trace(response);

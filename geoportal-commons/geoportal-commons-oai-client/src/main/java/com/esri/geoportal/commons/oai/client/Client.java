@@ -18,6 +18,7 @@ package com.esri.geoportal.commons.oai.client;
 import com.esri.geoportal.commons.utils.XmlUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -49,7 +50,6 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import org.apache.http.HttpStatus;
 
 /**
  * OAI-PMH client.
@@ -104,7 +104,26 @@ public class Client implements Closeable {
       String responseContent = IOUtils.toString(contentStream, "UTF-8");
       LOG.trace(String.format("RESPONSE: %s, %s", responseContent, reasonMessage));
 
-      if (httpResponse.getStatusLine().getStatusCode() >= 400) {
+      if (httpResponse.getStatusLine().getStatusCode() == 429 ||
+              httpResponse.getStatusLine().getStatusCode() == 503) {
+
+       try {
+         Integer retry = Integer.parseInt( httpResponse.getFirstHeader("Retry-After").getValue() );
+         LOG.info("Delay in harvesting requested by server " +retry);
+         Thread.sleep(retry * 1000 + 5000);   // add 5 seconds  to be safe
+         try (CloseableHttpResponse httpResponse2 = httpClient.execute(request);
+              InputStream contentStream2 = httpResponse2.getEntity().getContent();) {
+           reasonMessage = httpResponse2.getStatusLine().getReasonPhrase();
+           responseContent = IOUtils.toString(contentStream2, "UTF-8");
+           LOG.trace(String.format("RESPONSE: %s, %s", responseContent, reasonMessage));
+         }
+       }
+       catch (Exception ex ){
+
+       }
+
+      }
+      else if (httpResponse.getStatusLine().getStatusCode() >= 400) {
         throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
       }
 
@@ -156,8 +175,25 @@ public class Client implements Closeable {
       String reasonMessage = httpResponse.getStatusLine().getReasonPhrase();
       String responseContent = IOUtils.toString(contentStream, "UTF-8");
       LOG.trace(String.format("RESPONSE: %s, %s", responseContent, reasonMessage));
+      if (httpResponse.getStatusLine().getStatusCode() == 429 ||
+              httpResponse.getStatusLine().getStatusCode() == 503) {
+         try {
+          Integer retry = Integer.parseInt( httpResponse.getFirstHeader("Retry-After").getValue() );
+           LOG.info("Delay in harvesting requested by server " +retry);
+          Thread.sleep(retry * 1000 + 5000);   // add 5 seconds  to be safe
+          try (CloseableHttpResponse httpResponse2 = httpClient.execute(request);
+               InputStream contentStream2 = httpResponse2.getEntity().getContent();) {
+            reasonMessage = httpResponse2.getStatusLine().getReasonPhrase();
+            responseContent = IOUtils.toString(contentStream2, "UTF-8");
+            LOG.trace(String.format("RESPONSE: %s, %s", responseContent, reasonMessage));
+          }
+        }
+        catch (Exception ex ){
 
-      if (httpResponse.getStatusLine().getStatusCode() >= 400) {
+        }
+
+      }
+     else if  (httpResponse.getStatusLine().getStatusCode() >= 400) {
         throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
       }
 

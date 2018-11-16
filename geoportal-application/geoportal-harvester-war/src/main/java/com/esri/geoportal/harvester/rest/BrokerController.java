@@ -18,10 +18,9 @@ package com.esri.geoportal.harvester.rest;
 import com.esri.geoportal.harvester.api.defs.EntityDefinition;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
 import com.esri.geoportal.harvester.engine.services.Engine;
+import com.esri.geoportal.harvester.engine.utils.BrokerReference;
 import com.esri.geoportal.harvester.engine.utils.BrokerReference.Category;
 import com.esri.geoportal.harvester.support.BrokerResponse;
-import java.util.UUID;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,14 +28,12 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import static com.esri.geoportal.commons.utils.CrlfUtils.formatForLog;
-import com.esri.geoportal.harvester.engine.utils.BrokerReference;
 
 /**
  * Broker controller.

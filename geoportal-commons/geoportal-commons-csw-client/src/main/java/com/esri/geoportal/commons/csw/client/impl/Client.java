@@ -15,53 +15,13 @@
  */
 package com.esri.geoportal.commons.csw.client.impl;
 
-import static com.esri.core.geometry.Operator.Type.Contains;
-import static com.esri.core.geometry.Operator.Type.Intersects;
 import com.esri.geoportal.commons.constants.HttpConstants;
-import com.esri.geoportal.commons.csw.client.IClient;
-import com.esri.geoportal.commons.csw.client.ICriteria;
-import com.esri.geoportal.commons.csw.client.IProfile;
-import com.esri.geoportal.commons.csw.client.IRecord;
-import com.esri.geoportal.commons.csw.client.IRecords;
-import static com.esri.geoportal.commons.csw.client.impl.Constants.CONFIG_FOLDER_PATH;
-import static com.esri.geoportal.commons.csw.client.impl.Constants.SCHEME_METADATA_DOCUMENT;
-import static com.esri.geoportal.commons.utils.Constants.DEFAULT_REQUEST_CONFIG;
+import com.esri.geoportal.commons.csw.client.*;
 import com.esri.geoportal.commons.utils.SimpleCredentials;
-import static com.esri.geoportal.commons.utils.HttpClientContextBuilder.createHttpClientContext;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParserFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Templates;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.StopWatch;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -79,6 +39,39 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.esri.core.geometry.Operator.Type.Contains;
+import static com.esri.core.geometry.Operator.Type.Intersects;
+import static com.esri.geoportal.commons.csw.client.impl.Constants.CONFIG_FOLDER_PATH;
+import static com.esri.geoportal.commons.csw.client.impl.Constants.SCHEME_METADATA_DOCUMENT;
+import static com.esri.geoportal.commons.utils.Constants.DEFAULT_REQUEST_CONFIG;
+import static com.esri.geoportal.commons.utils.HttpClientContextBuilder.createHttpClientContext;
 /**
  * Client implementation.
  */
@@ -115,9 +108,9 @@ public class Client implements IClient {
   @Override
   public IRecords findRecords(int start, int max, Date from, Date to, String searchText) throws Exception {
     LOG.debug(String.format("Executing findRecords(start=%d,max=%d)", start, max));
-    
-    loadCapabilities();
 
+    loadCapabilities();
+    LOG.trace("Loaded Capabilities Complete");
     Criteria crt = new Criteria();
     crt.setStartPosition(start);
     crt.setMaxRecords(max);
@@ -129,19 +122,26 @@ public class Client implements IClient {
     HttpPost post = createRecordsPostRequest(capabilites.get_getRecordsPostURL(), requestBody);
 
     HttpClientContext context = cred!=null && !cred.isEmpty()? createHttpClientContext(baseUrl, cred): null;
+    StopWatch sw =  StopWatch.createStarted();
     try (CloseableHttpResponse httpResponse = httpClient.execute(post,context); InputStream responseInputStream = httpResponse.getEntity().getContent();) {
+      LOG.trace(String.format("Executed findRecords %d", sw.getNanoTime()));
       if (httpResponse.getStatusLine().getStatusCode()>=400) {
         throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase());
       }
       if (httpResponse.getStatusLine().getStatusCode()==302) {
         HttpPost post2 = createRecordsPostRequest(httpResponse.getFirstHeader("Location").getValue(), requestBody);
         try (CloseableHttpResponse httpResponse2 = httpClient.execute(post2,context); InputStream responseInputStream2 = httpResponse2.getEntity().getContent();) {
+          LOG.debug(String.format("Executed findRecords  302 request %d", sw.getNanoTime()));
           if (httpResponse2.getStatusLine().getStatusCode()>=400) {
             throw new HttpResponseException(httpResponse2.getStatusLine().getStatusCode(), httpResponse2.getStatusLine().getReasonPhrase());
           }
+          sw.stop();
+          LOG.trace(String.format("Executed findRecords stop %d", sw.getNanoTime()));
           return readRecordsFromStream(responseInputStream2);
         }
       } else {
+        sw.stop();
+        LOG.trace(String.format("Executed findRecords stop %d", sw.getNanoTime()));
         return readRecordsFromStream(responseInputStream);
       }
     }
@@ -224,10 +224,11 @@ public class Client implements IClient {
   private String makeResourceFromCswResponse(String cswResponse, String recordId) {
     Pattern cswRecordStart = Pattern.compile("<csw:Record>");
     Pattern cswRecordEnd = Pattern.compile("</csw:Record>");
+    StopWatch sw = StopWatch.createStarted();
 
     Matcher cswRecordStartMatcher = cswRecordStart.matcher(cswResponse);
     Matcher cswRecordEndMatcher = cswRecordEnd.matcher(cswResponse);
-
+    LOG.debug(String.format("Executing makeResourceFromCswResponse %d", sw.getNanoTime()));
     if (cswRecordStartMatcher.find() && cswRecordEndMatcher.find()) {
       String dcResponse = cswResponse.substring(cswRecordStartMatcher.end(), cswRecordEndMatcher.start());
       StringBuilder xml = new StringBuilder();
@@ -242,10 +243,10 @@ public class Client implements IClient {
 
       xml.append("</rdf:Description>");
       xml.append("</rdf:RDF>");
-
+      sw.stop();
       return xml.toString();
     }
-
+    sw.stop();
     return cswResponse;
   }
 
@@ -266,7 +267,7 @@ public class Client implements IClient {
     // create transformer
     Templates template = TemplatesManager.getInstance().getTemplate(Constants.CONFIG_FOLDER_PATH + "/" + profile.getGetRecordsReqXslt());
     Transformer transformer = template.newTransformer();
-
+    StopWatch sw = StopWatch.createStarted();
     try (ByteArrayInputStream internalRequestInputStream = new ByteArrayInputStream(internalRequestXml.getBytes("UTF-8"));) {
 
       // create internal request DOM
@@ -302,18 +303,21 @@ public class Client implements IClient {
    */
   private List<IRecord> readRecords(InputStream contentStream) throws IOException, TransformerConfigurationException, TransformerException, ParserConfigurationException, SAXException, XPathExpressionException {
     ArrayList<IRecord> records = new ArrayList<>();
-
-    // create transformer
+    StopWatch sw = StopWatch.createStarted();
+    LOG.trace(String.format("Executing readRecords start"));
+// create transformer
     Templates template = TemplatesManager.getInstance().getTemplate(profile.getResponsexslt());
     Transformer transformer = template.newTransformer();
 
     // perform transformation
     StringWriter writer = new StringWriter();
     transformer.transform(new StreamSource(contentStream), new StreamResult(writer));
-    
+    LOG.trace(String.format("Executing readRecords transformers created %d", sw.getNanoTime()));
+
     LOG.trace(String.format("Received records:\n%s", writer.toString()));
 
     try (ByteArrayInputStream transformedContentStream = new ByteArrayInputStream(writer.toString().getBytes("UTF-8"))) {
+      LOG.debug(String.format("Executing readRecords  %d", sw.getNanoTime()));
 
       // create internal request DOM
       DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
@@ -332,15 +336,18 @@ public class Client implements IClient {
 
       NodeList recordNodeList = (NodeList) xpath.evaluate("/Records/Record", resultDom, XPathConstants.NODESET);
       for (int i = 0; i < recordNodeList.getLength(); i++) {
+        LOG.debug(String.format("Executing readRecords single record  %d", sw.getNanoTime()));
+
         Node recordNode = recordNodeList.item(i);
         String id = (String) xpath.evaluate("ID", recordNode, XPathConstants.STRING);
         String strModifiedDate = (String) xpath.evaluate("ModifiedDate", recordNode, XPathConstants.STRING);
         Date modifedDate = parseIsoDate(strModifiedDate);
         IRecord record = new Record(id, modifedDate);
         records.add(record);
+        LOG.debug(String.format("Executing readRecords single record end %d", sw.getNanoTime()));
       }
     }
-
+sw.stop();
     return records;
   }
 
@@ -468,9 +475,13 @@ public class Client implements IClient {
   
   private IRecords readRecordsFromStream(InputStream inputStream) throws Exception {
     String response = IOUtils.toString(inputStream, "UTF-8");
+    StopWatch sw =  StopWatch.createStarted();
     try (ByteArrayInputStream contentInputStream = new ByteArrayInputStream(response.getBytes("UTF-8"));) {
+      LOG.trace(String.format("Read Records from Steam %d", sw.getNanoTime()));
       Records records = new Records();
       records.addAll(readRecords(contentInputStream));
+      sw.stop();
+      LOG.trace(String.format("Read Records from Steam stop %d", sw.getNanoTime()));
       return records;
     }
   }

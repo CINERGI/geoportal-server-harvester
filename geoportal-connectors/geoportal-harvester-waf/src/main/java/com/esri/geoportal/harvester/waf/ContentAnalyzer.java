@@ -15,6 +15,8 @@
  */
 package com.esri.geoportal.harvester.waf;
 
+import org.apache.commons.text.StringEscapeUtils;
+
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -22,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.commons.text.StringEscapeUtils;
 
 /**
  * Content analyzer.

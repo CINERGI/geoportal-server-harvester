@@ -21,21 +21,19 @@ import com.esri.geoportal.harvester.api.defs.UITemplate;
 import com.esri.geoportal.harvester.api.ex.DataProcessorException;
 import com.esri.geoportal.harvester.api.ex.InvalidDefinitionException;
 import com.esri.geoportal.harvester.api.specs.InputConnector;
-import com.esri.geoportal.harvester.engine.services.BrokersService;
 import com.esri.geoportal.harvester.engine.managers.BrokerDefinitionManager;
 import com.esri.geoportal.harvester.engine.registers.InboundConnectorRegistry;
 import com.esri.geoportal.harvester.engine.registers.OutboundConnectorRegistry;
+import com.esri.geoportal.harvester.engine.services.BrokersService;
 import com.esri.geoportal.harvester.engine.utils.BrokerReference;
-import static com.esri.geoportal.harvester.engine.utils.BrokerReference.Category.INBOUND;
-import static com.esri.geoportal.harvester.engine.utils.BrokerReference.Category.OUTBOUND;
 import com.esri.geoportal.harvester.engine.utils.CrudlException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.esri.geoportal.harvester.engine.utils.BrokerReference.Category.INBOUND;
+import static com.esri.geoportal.harvester.engine.utils.BrokerReference.Category.OUTBOUND;
 
 /**
  * Default brokers service.
