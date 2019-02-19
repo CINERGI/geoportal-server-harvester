@@ -62,6 +62,7 @@ define(["dojo/_base/declare",
           widget.destroy();
         });
         this.widgets = [];
+        topic.publish("msg");
       },
       
       load: function() {
@@ -69,7 +70,7 @@ define(["dojo/_base/declare",
           lang.hitch(this,this.processBrokers),
           lang.hitch(this,function(error){
             console.error(error);
-            topic.publish("msg",new Error("Unable to access brokers information"));
+            topic.publish("msg", new Error(this.i18n.brokers.errors.access));
           })
         );
       },
@@ -131,7 +132,7 @@ define(["dojo/_base/declare",
             }),
             lang.hitch(this,function(error){
               console.error(error);
-              topic.publish("msg",new Error("Error creating broker"));
+              topic.publish("msg", new Error(this.i18n.brokers.errors.creating));
             })
           );
         })));
@@ -149,7 +150,7 @@ define(["dojo/_base/declare",
           }),
           lang.hitch(this,function(error){
             console.error(error);
-            topic.publish("msg",new Error("Error removing broker"));
+            topic.publish("msg", new Error(this.i18n.brokers.errors.creating));
           })
         );
       }
