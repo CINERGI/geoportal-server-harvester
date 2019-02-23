@@ -72,6 +72,7 @@
     <xsl:choose>
       <xsl:when test="normalize-space(.)!=''">
         <ogc:PropertyIsLike escapeChar="!" singleChar="#" wildCard="*">
+       <!--   <ogc:PropertyName>apiso:AnyText</ogc:PropertyName -->
           <ogc:PropertyName>AnyText</ogc:PropertyName>
           <ogc:Literal>
             <xsl:call-template name="output-keywords">
